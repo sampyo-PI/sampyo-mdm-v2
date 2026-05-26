@@ -1,4 +1,6 @@
-export type SidebarLink = { label: string; href: string; active?: boolean };
+import { NavLink } from "react-router-dom";
+
+export type SidebarLink = { label: string; path: string };
 export type SidebarGroup = { title: string; links: SidebarLink[] };
 
 export type SidebarProps = {
@@ -12,9 +14,14 @@ export function Sidebar({ groups }: SidebarProps) {
         <div key={gi}>
           <div className="group-title">{g.title}</div>
           {g.links.map((l, li) => (
-            <a key={`${l.href}-${li}`} href={l.href} className={l.active ? "active" : undefined}>
+            <NavLink
+              key={`${l.path}-${li}`}
+              to={l.path}
+              end={l.path === "/"}
+              className={({ isActive }) => (isActive ? "active" : undefined)}
+            >
               {l.label}
-            </a>
+            </NavLink>
           ))}
         </div>
       ))}

@@ -1,6 +1,7 @@
+import { NavLink } from "react-router-dom";
 import { FsToggle } from "./FsToggle";
 
-export type GnbItem = { label: string; href: string; active?: boolean };
+export type GnbItem = { label: string; path: string };
 export type HeaderUser = { initial: string; name: string; deptRole?: string };
 
 export type HeaderProps = {
@@ -9,8 +10,8 @@ export type HeaderProps = {
   subtitle?: string;
   gnb: GnbItem[];
   searchPlaceholder?: string;
-  qaUrl: string;
-  manualUrl: string;
+  qaPath: string;
+  manualPath: string;
   user: HeaderUser;
   onToggleSidebar: () => void;
 };
@@ -52,9 +53,14 @@ export function Header(props: HeaderProps) {
 
       <nav className="gnb">
         {props.gnb.map((item, i) => (
-          <a key={`${item.href}-${i}`} href={item.href} className={item.active ? "active" : undefined}>
+          <NavLink
+            key={`${item.path}-${i}`}
+            to={item.path}
+            end={item.path === "/"}
+            className={({ isActive }) => (isActive ? "active" : undefined)}
+          >
             {item.label}
-          </a>
+          </NavLink>
         ))}
       </nav>
 
@@ -66,12 +72,12 @@ export function Header(props: HeaderProps) {
 
       <FsToggle />
 
-      <a href={props.qaUrl} className="help-btn" title="질문·답변">
+      <NavLink to={props.qaPath} className="help-btn" title="질문·답변">
         <span className="ico">❓</span> Q&amp;A
-      </a>
-      <a href={props.manualUrl} className="help-btn" title="사용자 매뉴얼">
+      </NavLink>
+      <NavLink to={props.manualPath} className="help-btn" title="사용자 매뉴얼">
         <span className="ico">📖</span> 매뉴얼
-      </a>
+      </NavLink>
 
       <div className="user">
         <span className="avatar">{props.user.initial}</span>
