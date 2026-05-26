@@ -1,0 +1,17 @@
+/* Pretendard 공식 CDN (한글 포함 dynamic-subset) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
+
+/* AG-Grid Quartz (SDS 표준) */
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
+
+/* SDS v0.1 공통 스타일 (원본 그대로 — 재정의 금지) */
+@import "./styles/sds.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-family: "Pretendard", -apple-system, sans-serif;
+}
