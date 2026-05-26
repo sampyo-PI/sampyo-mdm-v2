@@ -82,17 +82,23 @@ export function CatalogPage() {
         headerName: "표준코드",
         width: 160,
         pinned: "left" as const,
-        cellClass: "cell-link",
+        cellClass: "cell-link num",
+        cellRenderer: (p: { value: string | null; data: ItemRow }) =>
+          p.value ? (
+            <a href={`#/detail?id=${p.data.id}`} onClick={(e) => e.preventDefault()}>
+              {p.value}
+            </a>
+          ) : null,
       },
       { field: "item_name" as keyof ItemRow, headerName: "품목명", flex: 1, minWidth: 240 },
       { field: "normalized_name" as keyof ItemRow, headerName: "표준명", flex: 1, minWidth: 240 },
-      { field: "small_category" as keyof ItemRow, headerName: "소분류", width: 120 },
-      { field: "maker" as keyof ItemRow, headerName: "제조사", width: 120 },
-      { field: "model" as keyof ItemRow, headerName: "모델", width: 140 },
+      { field: "small_category" as keyof ItemRow, headerName: "소분류", width: 130 },
+      { field: "maker" as keyof ItemRow, headerName: "제조사", width: 130 },
+      { field: "model" as keyof ItemRow, headerName: "모델", width: 140, cellClass: "num" },
       {
         field: "source" as keyof ItemRow,
         headerName: "구분",
-        width: 90,
+        width: 80,
         cellRenderer: (p: { value: string | null }) =>
           p.value ? (
             <span className={`badge ${SOURCE_BADGE[p.value] ?? "b-draft"}`}>
@@ -100,7 +106,12 @@ export function CatalogPage() {
             </span>
           ) : null,
       },
-      { field: "legacy_code" as keyof ItemRow, headerName: "기존코드", width: 130, cellClass: "num" },
+      {
+        field: "legacy_code" as keyof ItemRow,
+        headerName: "기존코드",
+        width: 130,
+        cellClass: "cell-readonly num",
+      },
     ],
     [],
   );
@@ -137,8 +148,8 @@ export function CatalogPage() {
         onSearch={() => setAppliedFilters(filters)}
       />
 
-      <div className="section-title">품목 목록</div>
-      <div className="ag-theme-quartz" style={{ height: 600 }}>
+      <div className="section-title">품목 목록 (정렬·필터·리사이즈)</div>
+      <div className="ag-theme-quartz" style={{ height: 540 }}>
         <AgGridReact
           columnDefs={columnDefs}
           rowModelType="infinite"
@@ -146,7 +157,8 @@ export function CatalogPage() {
           maxBlocksInCache={10}
           rowHeight={34}
           headerHeight={30}
-          defaultColDef={{ sortable: true, resizable: true }}
+          suppressCellFocus
+          defaultColDef={{ sortable: true, resizable: true, suppressMovable: false }}
           onGridReady={onGridReady}
         />
       </div>

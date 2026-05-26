@@ -2,6 +2,7 @@ import { type RouteObject } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ConnectionTestPage } from "./pages/ConnectionTestPage";
+import { LoginPage } from "./pages/LoginPage";
 
 // AG-Grid가 들어간 페이지들은 별도 청크로 → 첫 페이지가 비-그리드일 때 1.1MB 절약
 const ListPage = lazy(() => import("./pages/ListPage").then((m) => ({ default: m.ListPage })));
@@ -21,7 +22,7 @@ export const routes: RouteObject[] = [
   { path: "/connection-test", element: <ConnectionTestPage /> },
   { path: "/detail", element: <PlaceholderPage title="품목 상세" path="/detail" /> },
   { path: "/edit", element: <PlaceholderPage title="품목 수정·등록" path="/edit" /> },
-  { path: "/login", element: <PlaceholderPage title="로그인" path="/login" /> },
+  { path: "/login", element: <LoginPage /> },
   { path: "/modals", element: <PlaceholderPage title="모달 예시" path="/modals" /> },
   { path: "/qa", element: <PlaceholderPage title="Q&A 게시판" path="/qa" /> },
   { path: "/qa/thread", element: <PlaceholderPage title="Q&A 스레드" path="/qa/thread" /> },

@@ -26,7 +26,6 @@ function App() {
               searchPlaceholder: "품목코드 / 품명",
               qaPath: "/qa",
               manualPath: "/manual",
-              user: { initial: "채", name: "채현석", deptRole: "PI팀" },
             }}
             sidebar={{ groups: SIDEBAR_GROUPS }}
           >

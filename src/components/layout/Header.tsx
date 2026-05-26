@@ -1,8 +1,8 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { FsToggle } from "./FsToggle";
+import { useAuth } from "../../contexts/AuthContext";
 
 export type GnbItem = { label: string; path: string };
-export type HeaderUser = { initial: string; name: string; deptRole?: string };
 
 export type HeaderProps = {
   brandCode: string;
@@ -12,7 +12,6 @@ export type HeaderProps = {
   searchPlaceholder?: string;
   qaPath: string;
   manualPath: string;
-  user: HeaderUser;
   onToggleSidebar: () => void;
 };
 
@@ -20,6 +19,11 @@ export type HeaderProps = {
  * SDS 글로벌 헤더. CLAUDE.md §2 강제: 햄버거/브랜드/GNB/spacer/search/fs-toggle/Q&A/매뉴얼/user 순서 불변.
  */
 export function Header(props: HeaderProps) {
+  const { user, signInGoogle, signOut } = useAuth();
+  const navigate = useNavigate();
+  const initial = (user?.email ?? "?").slice(0, 1).toUpperCase();
+  const displayName = (user?.user_metadata?.full_name as string) ?? user?.email ?? "익명";
+
   return (
     <header className="global">
       <button
@@ -79,13 +83,35 @@ export function Header(props: HeaderProps) {
         <span className="ico">📖</span> 매뉴얼
       </NavLink>
 
-      <div className="user">
-        <span className="avatar">{props.user.initial}</span>
-        <span>
-          {props.user.name}
-          {props.user.deptRole ? ` · ${props.user.deptRole}` : ""}
-        </span>
-      </div>
+      {user ? (
+        <div className="user">
+          <span className="avatar">{initial}</span>
+          <span>{displayName}</span>
+          <button
+            type="button"
+            className="help-btn"
+            title="로그아웃"
+            onClick={() => void signOut()}
+            style={{ marginLeft: 8 }}
+          >
+            로그아웃
+          </button>
+        </div>
+      ) : (
+        <div className="user">
+          <button
+            type="button"
+            className="help-btn"
+            title="Google 로그인"
+            onClick={() => {
+              navigate("/login");
+              void signInGoogle();
+            }}
+          >
+            <span className="ico">🔑</span> 로그인
+          </button>
+        </div>
+      )}
     </header>
   );
 }
