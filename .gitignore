@@ -36,3 +36,7 @@ dist-ssr
 .turbo
 .cache
 coverage
+
+# Supabase CLI cache
+supabase/.temp
+supabase/.branches
