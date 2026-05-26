@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { CatalogFilters as F, CatalogCategoryOptions } from "../../lib/catalogQueries";
+import { SearchCombobox } from "../common/SearchCombobox";
 
 type Props = {
   filters: F;
@@ -10,87 +11,77 @@ type Props = {
   onSearch: () => void;
 };
 
-const SOURCE_OPTIONS = [
-  { value: "", label: "전체" },
-  { value: "mdm", label: "신규 (MDM)" },
-  { value: "legacy", label: "기존 (legacy)" },
-  { value: "bulk_upload", label: "일괄 업로드" },
-] as const;
+const SOURCE_LABELS: Record<NonNullable<F["source"]>, string> = {
+  mdm: "신규 (MDM)",
+  legacy: "기존 (legacy)",
+  bulk_upload: "일괄 업로드",
+};
+const SOURCE_OPTIONS = ["신규 (MDM)", "기존 (legacy)", "일괄 업로드"];
+
+function labelToSource(label: string | null): F["source"] {
+  if (!label) return null;
+  for (const [k, v] of Object.entries(SOURCE_LABELS)) {
+    if (v === label) return k as F["source"];
+  }
+  return null;
+}
 
 export function CatalogFilters({ filters, setFilters, options, isOptionsLoading, totalCount, onSearch }: Props) {
-  // 캐스케이딩: 대 선택 시 중분류 = 해당 대 소속만, 중 선택 시 소분류 = 해당 중 소속만
   const mediumOptions = useMemo(() => {
-    if (!options) return [];
-    if (!filters.large) return options.medium;
-    return options.medium.filter((m) => m.large_name === filters.large);
+    if (!options) return [] as string[];
+    if (!filters.large) return options.medium.map((m) => m.name);
+    return options.medium.filter((m) => m.large_name === filters.large).map((m) => m.name);
   }, [options, filters.large]);
 
   const smallOptions = useMemo(() => {
-    if (!options) return [];
-    if (!filters.medium) return options.small;
-    return options.small.filter((s) => s.medium_name === filters.medium);
+    if (!options) return [] as string[];
+    if (!filters.medium) return options.small.map((s) => s.name);
+    return options.small.filter((s) => s.medium_name === filters.medium).map((s) => s.name);
   }, [options, filters.medium]);
 
   const activeCount = [filters.large, filters.medium, filters.small, filters.source, filters.search.trim() || null]
     .filter(Boolean).length;
 
+  const sourceValue = filters.source ? SOURCE_LABELS[filters.source] : null;
+
   return (
     <div className="filter-card">
-      <div>
+      <div style={{ width: 140 }}>
         <label>대분류</label>
-        <select
-          value={filters.large ?? ""}
-          onChange={(e) =>
-            setFilters({ ...filters, large: e.target.value || null, medium: null, small: null })
-          }
+        <SearchCombobox
+          value={filters.large ?? null}
+          onChange={(v) => setFilters({ ...filters, large: v, medium: null, small: null })}
+          options={options?.large ?? []}
           disabled={isOptionsLoading}
-        >
-          <option value="">전체</option>
-          {options?.large.map((l) => (
-            <option key={l} value={l}>{l}</option>
-          ))}
-        </select>
+        />
       </div>
-      <div>
+      <div style={{ width: 140 }}>
         <label>중분류</label>
-        <select
-          value={filters.medium ?? ""}
-          onChange={(e) => setFilters({ ...filters, medium: e.target.value || null, small: null })}
+        <SearchCombobox
+          value={filters.medium ?? null}
+          onChange={(v) => setFilters({ ...filters, medium: v, small: null })}
+          options={mediumOptions}
           disabled={isOptionsLoading}
-        >
-          <option value="">전체</option>
-          {mediumOptions.map((m) => (
-            <option key={`${m.large_name}-${m.name}`} value={m.name}>{m.name}</option>
-          ))}
-        </select>
+        />
       </div>
-      <div>
+      <div style={{ width: 140 }}>
         <label>소분류</label>
-        <select
-          value={filters.small ?? ""}
-          onChange={(e) => setFilters({ ...filters, small: e.target.value || null })}
+        <SearchCombobox
+          value={filters.small ?? null}
+          onChange={(v) => setFilters({ ...filters, small: v })}
+          options={smallOptions}
           disabled={isOptionsLoading}
-        >
-          <option value="">전체</option>
-          {smallOptions.map((s) => (
-            <option key={`${s.medium_name}-${s.name}`} value={s.name}>{s.name}</option>
-          ))}
-        </select>
+        />
       </div>
-      <div>
+      <div style={{ width: 140 }}>
         <label>구분</label>
-        <select
-          value={filters.source ?? ""}
-          onChange={(e) =>
-            setFilters({ ...filters, source: (e.target.value || null) as F["source"] })
-          }
-        >
-          {SOURCE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+        <SearchCombobox
+          value={sourceValue}
+          onChange={(label) => setFilters({ ...filters, source: labelToSource(label) })}
+          options={SOURCE_OPTIONS}
+        />
       </div>
-      <div className="flex-1 min-w-[200px]">
+      <div className="flex-1" style={{ minWidth: 220 }}>
         <label>검색어</label>
         <input
           type="text"
@@ -100,6 +91,7 @@ export function CatalogFilters({ filters, setFilters, options, isOptionsLoading,
           onKeyDown={(e) => {
             if (e.key === "Enter") onSearch();
           }}
+          style={{ width: "100%" }}
         />
       </div>
       <span className="chip">활성 필터 {activeCount}</span>

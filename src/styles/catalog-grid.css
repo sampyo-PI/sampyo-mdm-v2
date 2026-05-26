@@ -1,0 +1,288 @@
+/* ─────────────────────────────────────────────────────────
+   카탈로그 그리드 시각 토큰 (mockup 확정본 포팅)
+   출처: docs/sampyo-design-system/templates/catalog_template.html
+   기준: production 10.50.20.51:8041 (RMC 포탈) CSS 직접 fetch
+   ───────────────────────────────────────────────────────── */
+
+body {
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont,
+               "Malgun Gothic", "Apple SD Gothic Neo", Roboto, sans-serif !important;
+}
+
+/* AG-Grid Quartz 토큰 override */
+.ag-theme-quartz {
+  --ag-border-color: #e5e7eb;
+  --ag-header-background-color: #f1f5f9;
+  --ag-header-foreground-color: #003876;
+  --ag-row-hover-color: #eff6ff;
+  --ag-odd-row-background-color: #fafbfc;
+  --ag-background-color: #ffffff;
+  --ag-cell-horizontal-padding: 10px;
+  --ag-selected-row-background-color: #dbeafe;
+  --ag-font-family: "Pretendard", system-ui, sans-serif;
+}
+
+/* 헤더 영역 배경 강제 적용 (--ag-header-background-color 변수만으로 부족한 경우 보강) */
+.ag-theme-quartz .ag-header,
+.ag-theme-quartz .ag-header-row,
+.ag-theme-quartz .ag-header-cell {
+  background-color: #f1f5f9 !important;
+}
+
+/* 셀 텍스트 navy (production 패턴) — Tailwind preflight 위에 강제 */
+.ag-theme-quartz .ag-cell,
+.ag-theme-quartz .ag-cell-value,
+.ag-theme-quartz .ag-cell *:not(.badge):not(.badge *) {
+  color: #003876 !important;
+}
+/* 단, badge는 자체 색 유지 + 코드 셀의 accent navy도 유지 */
+.ag-theme-quartz .ag-cell .badge,
+.ag-theme-quartz .ag-cell .badge * {
+  color: inherit !important;
+}
+
+/* read-only 셀: 배경 투명 → 행 hover 색상이 그대로 비치게 */
+.ag-theme-quartz .cell-readonly {
+  background: transparent !important;
+}
+
+/* 모든 셀/헤더 세로·가로 구분선 제거 */
+.ag-theme-quartz .ag-cell,
+.ag-theme-quartz .ag-header-cell,
+.ag-theme-quartz .ag-header-group-cell {
+  border: none !important;
+}
+
+/* pinned-left ↔ 일반 영역 경계 세로선 (스크롤 시각 구분) */
+.ag-theme-quartz .ag-pinned-left-cols-container,
+.ag-theme-quartz .ag-pinned-left-header {
+  border-right: 1px solid #e5e7eb !important;
+}
+
+/* 행 사이 가로 구분선만 유지 (가독성) */
+.ag-theme-quartz .ag-row {
+  border-bottom: 1px solid #f1f3f6;
+}
+
+/* 헤더 ↔ 데이터 영역 분리선 */
+.ag-theme-quartz .ag-header {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* 헤더 텍스트 — RMC production 패턴 (!important 강화) */
+.ag-theme-quartz .ag-header-cell-text,
+.ag-theme-quartz .ag-header-group-cell-label .ag-header-group-text {
+  font-weight: 600 !important;
+  color: #003876 !important;
+  font-size: var(--app-fs) !important;
+}
+.ag-theme-quartz .ag-header-cell {
+  font-weight: 600;
+}
+
+/* 필터 아이콘 — 위(넓)→아래(좁) 3줄 (Lucide filter-lines)
+   AG-Grid v35 quartz: --ag-icon-image-menu (::after background) + --ag-icon-font-code-menu (::before content) 둘 다 변수 override 필요 */
+.ag-theme-quartz {
+  /* 폰트 아이콘 끄기 */
+  --ag-icon-font-display-menu: none;
+  --ag-icon-font-display-filter: none;
+  /* SVG 아이콘 켜기 + 이미지 지정 */
+  --ag-icon-image-display-menu: inline-block;
+  --ag-icon-image-display-filter: inline-block;
+  --ag-icon-image-menu: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><line x1='3' y1='6' x2='21' y2='6'/><line x1='7' y1='12' x2='17' y2='12'/><line x1='10' y1='18' x2='14' y2='18'/></svg>");
+  --ag-icon-image-filter: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.4' stroke-linecap='round'><line x1='3' y1='6' x2='21' y2='6'/><line x1='7' y1='12' x2='17' y2='12'/><line x1='10' y1='18' x2='14' y2='18'/></svg>");
+  --ag-icon-image-opacity-menu: 0.7;
+}
+.ag-theme-quartz .ag-icon-menu::after,
+.ag-theme-quartz .ag-icon-filter::after {
+  width: 14px; height: 14px;
+  background-repeat: no-repeat;
+  background-size: 14px 14px;
+  background-position: center;
+}
+/* 필터 적용 시 navy로 */
+.ag-theme-quartz .ag-header-cell-filtered {
+  --ag-icon-image-menu: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23003876' stroke-width='2.6' stroke-linecap='round'><line x1='3' y1='6' x2='21' y2='6'/><line x1='7' y1='12' x2='17' y2='12'/><line x1='10' y1='18' x2='14' y2='18'/></svg>");
+  --ag-icon-image-opacity-menu: 1;
+}
+.ag-theme-quartz .ag-header-cell:hover {
+  --ag-icon-image-opacity-menu: 1;
+}
+
+/* ─── 카탈로그 상세 모달 (mockup catalog_detail_template.html 동일) ─── */
+.modal.detail {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  max-width: 1100px;
+  width: 92vw;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal.detail .modal-h {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 22px;
+  background: #fff;
+  border-bottom: 1px solid var(--c-border);
+}
+.modal.detail .modal-h .head-left {
+  flex: 1;
+  min-width: 0;
+}
+.modal.detail .modal-h .item-code {
+  font-family: ui-monospace, monospace;
+  color: var(--c-accent-500);
+  font-weight: 700;
+  font-size: var(--app-fs-md);
+  letter-spacing: -0.01em;
+}
+.modal.detail .modal-h .item-name {
+  color: var(--c-text);
+  font-size: var(--app-fs-md);
+  margin-top: 2px;
+}
+.modal.detail .modal-h .head-meta {
+  display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; margin-top: 2px;
+  font-size: var(--app-fs-md);
+  color: var(--c-text-sub);
+}
+.modal.detail .modal-h .head-actions {
+  display: flex; gap: 6px; align-items: center;
+}
+.modal.detail .modal-h .close {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 20px; color: #94a3b8; line-height: 1;
+}
+.modal.detail .modal-h .close:hover { color: var(--c-text); }
+.modal.detail .modal-body {
+  padding: 16px 22px;
+  overflow: auto;
+  flex: 1;
+}
+.modal.detail .modal-f {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 18px; border-top: 1px solid var(--c-border);
+  background: #fafbfc;
+}
+
+/* 폰트 전체 통일 — --app-fs-md (모달 헤더 4줄과 동일) */
+.modal.detail .modal-body,
+.modal.detail .modal-body .kv-row .k,
+.modal.detail .modal-body .kv-row .v,
+.modal.detail .modal-body .fg-title,
+.modal.detail .modal-body .attr-slot .idx,
+.modal.detail .modal-body .attr-slot .name,
+.modal.detail .modal-body .attr-slot .val,
+.modal.detail .modal-body .timeline-row,
+.modal.detail .modal-body .timeline-row .ts,
+.modal.detail .modal-body .timeline-row .actor,
+.modal.detail .modal-body .timeline-row .desc,
+.modal.detail .modal-body .company-chip,
+.modal.detail .modal-body .text-xs {
+  font-size: var(--app-fs-md) !important;
+}
+.modal.detail .badge { font-size: var(--app-fs-md) !important; }
+.modal.detail .star { font-size: var(--app-fs-md) !important; }
+
+/* 모달 내부 form-group 컴팩트 */
+.modal.detail .modal-body .form-group {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+.modal.detail .modal-body .form-group .fg-title {
+  margin-bottom: 8px;
+  font-size: var(--app-fs-md);
+}
+
+/* attr-slot — 5 슬롯 + 추가 속성 */
+.attr-slot {
+  display: grid;
+  grid-template-columns: 32px 130px 1fr;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+}
+.attr-slot:last-child { border-bottom: 0; }
+.attr-slot .idx {
+  font-family: ui-monospace, monospace;
+  color: #9ca3af;
+  text-align: center;
+}
+.attr-slot .name {
+  color: #64748b;
+  font-weight: 600;
+}
+.attr-slot .val { color: var(--c-text); }
+.attr-slot .val.empty { color: #cbd5e1; font-style: italic; }
+.attr-slot .val.mono { font-family: ui-monospace, SFMono-Regular, monospace; font-variant-numeric: tabular-nums; }
+.attr-slot .star { color: #d97706; margin-left: 4px; }
+
+/* 사용 법인 chip */
+.company-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--c-border); border-radius: 6px;
+  padding: 3px 10px; margin: 2px;
+  background: #fff;
+}
+.company-chip .code {
+  font-family: ui-monospace, monospace;
+  color: var(--c-navy-600);
+  font-weight: 600;
+}
+.company-chip.off { opacity: 0.5; background: #f3f4f6; }
+.company-chip.off .code { color: #9ca3af; }
+
+/* timeline */
+.timeline-row {
+  display: flex; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.timeline-row:last-child { border-bottom: 0; }
+.timeline-row .ts {
+  font-family: ui-monospace, monospace;
+  color: #6b7280;
+  min-width: 130px;
+}
+.timeline-row .actor {
+  color: var(--c-navy-600);
+  min-width: 70px;
+}
+.timeline-row .desc { flex: 1; color: var(--c-text); }
+
+/* ─── 검색 콤보박스 (mockup catalog_template.html 동일) ─── */
+.combo-trigger {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 1px solid var(--c-border);
+  border-radius: 6px; padding: 6px 10px;
+  font-size: var(--app-fs); color: var(--c-text);
+  cursor: pointer;
+  min-width: 130px;
+}
+.combo-trigger:hover { border-color: var(--c-accent-500); }
+.combo-trigger:focus { outline: 2px solid var(--c-accent-500); outline-offset: -1px; }
+
+.combo-pop {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  width: 240px;
+  max-height: 280px; overflow-y: auto;
+  padding: 4px 0;
+}
+.combo-item {
+  padding: 6px 12px; cursor: pointer;
+  font-size: var(--app-fs);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.combo-empty {
+  padding: 12px; color: var(--c-text-sub); text-align: center; font-size: var(--app-fs-sm);
+}

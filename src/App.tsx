@@ -2,7 +2,7 @@ import { BrowserRouter, useRoutes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "./components/layout/AppShell";
 import { AuthProvider } from "./contexts/AuthContext";
-import { routes, SIDEBAR_GROUPS, GNB_ITEMS } from "./routes";
+import { routes, SIDEBAR_GROUPS } from "./routes";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false } },
@@ -20,10 +20,10 @@ function App() {
           <AppShell
             header={{
               brandCode: "MDM",
-              systemName: "품목마스터DM",
+              systemName: "삼표품목코드시스템",
               subtitle: "v2 · SDS v0.1",
-              gnb: GNB_ITEMS,
-              searchPlaceholder: "품목코드 / 품명",
+              gnb: [],
+              // 검색바 미사용 (페이지별 필터로 충분)
               qaPath: "/qa",
               manualPath: "/manual",
             }}

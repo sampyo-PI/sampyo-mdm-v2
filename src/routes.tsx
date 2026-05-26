@@ -18,15 +18,18 @@ function withSuspense(node: React.ReactNode) {
 
 export const routes: RouteObject[] = [
   { path: "/", element: withSuspense(<CatalogPage />) },
+  { path: "/request", element: <PlaceholderPage title="품목등록" path="/request" /> },
+  { path: "/requests", element: <PlaceholderPage title="요청목록" path="/requests" /> },
+  { path: "/categories", element: <PlaceholderPage title="분류 관리" path="/categories" /> },
+  { path: "/admin/reviewers", element: <PlaceholderPage title="검토자 관리" path="/admin/reviewers" /> },
+  { path: "/admin/ai-review", element: <PlaceholderPage title="AI 검토 현황" path="/admin/ai-review" /> },
+  { path: "/admin/erp", element: <PlaceholderPage title="ERP 매핑" path="/admin/erp" /> },
+  { path: "/qa", element: <PlaceholderPage title="Q&A 게시판" path="/qa" /> },
+  { path: "/manual", element: <PlaceholderPage title="사용자 매뉴얼" path="/manual" /> },
+  { path: "/login", element: <LoginPage /> },
+  // 개발 전용 — 메뉴에서 숨김
   { path: "/list-demo", element: withSuspense(<ListPage />) },
   { path: "/connection-test", element: <ConnectionTestPage /> },
-  { path: "/detail", element: <PlaceholderPage title="품목 상세" path="/detail" /> },
-  { path: "/edit", element: <PlaceholderPage title="품목 수정·등록" path="/edit" /> },
-  { path: "/login", element: <LoginPage /> },
-  { path: "/modals", element: <PlaceholderPage title="모달 예시" path="/modals" /> },
-  { path: "/qa", element: <PlaceholderPage title="Q&A 게시판" path="/qa" /> },
-  { path: "/qa/thread", element: <PlaceholderPage title="Q&A 스레드" path="/qa/thread" /> },
-  { path: "/manual", element: <PlaceholderPage title="사용자 매뉴얼" path="/manual" /> },
 ];
 
 export const SIDEBAR_GROUPS = [
@@ -34,25 +37,27 @@ export const SIDEBAR_GROUPS = [
     title: "품목마스터",
     links: [
       { label: "카탈로그", path: "/" },
-      { label: "연결 검증", path: "/connection-test" },
-      { label: "상세 보기", path: "/detail" },
-      { label: "수정·등록", path: "/edit" },
-      { label: "모달 예시", path: "/modals" },
-      { label: "ListPage 데모", path: "/list-demo" },
+      { label: "품목등록", path: "/request" },
+      { label: "요청목록", path: "/requests" },
+      { label: "분류 관리", path: "/categories" },
+    ],
+  },
+  {
+    title: "관리자",
+    links: [
+      { label: "검토자 관리", path: "/admin/reviewers" },
+      { label: "AI 검토 현황", path: "/admin/ai-review" },
+      { label: "ERP 매핑", path: "/admin/erp" },
     ],
   },
   {
     title: "도움말",
     links: [
       { label: "Q&A 게시판", path: "/qa" },
-      { label: "Q&A 스레드", path: "/qa/thread" },
       { label: "매뉴얼", path: "/manual" },
     ],
   },
-  {
-    title: "로그인",
-    links: [{ label: "로그인 화면", path: "/login" }],
-  },
+  // 개발용 페이지는 메뉴에서 숨김 (라우트는 유지)
 ];
 
 export const GNB_ITEMS = [

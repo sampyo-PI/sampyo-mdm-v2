@@ -11,6 +11,7 @@ import {
 } from "ag-grid-community";
 import { useQuery } from "@tanstack/react-query";
 import { CatalogFilters } from "../components/catalog/CatalogFilters";
+import { ItemDetailDialog } from "../components/catalog/ItemDetailDialog";
 import {
   fetchCatalogPage,
   fetchCategoryOptions,
@@ -85,6 +86,7 @@ export function CatalogPage() {
   const [filters, setFilters] = useState<F>(DEFAULT_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<F>(DEFAULT_FILTERS);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedItem, setSelectedItem] = useState<ItemRow | null>(null);
   const gridApiRef = useRef<GridApi | null>(null);
 
   const categoryOptions = useQuery({
@@ -141,14 +143,9 @@ export function CatalogPage() {
         cellRenderer: CodeCell,
         cellClass: "cell-link num",
       },
-      {
-        headerName: "분류",
-        children: [
-          { headerName: "대", field: "large_category" as keyof ItemRow, width: 100, cellClass: "cell-readonly" },
-          { headerName: "중", field: "medium_category" as keyof ItemRow, width: 120, cellClass: "cell-readonly" },
-          { headerName: "소", field: "small_category" as keyof ItemRow, width: 130, cellClass: "cell-readonly" },
-        ],
-      },
+      { headerName: "대분류", field: "large_category" as keyof ItemRow, width: 110, cellClass: "cell-readonly", valueFormatter: (p: { value: string | null }) => p.value || "—" },
+      { headerName: "중분류", field: "medium_category" as keyof ItemRow, width: 130, cellClass: "cell-readonly", valueFormatter: (p: { value: string | null }) => p.value || "—" },
+      { headerName: "소분류", field: "small_category" as keyof ItemRow, width: 140, cellClass: "cell-readonly", valueFormatter: (p: { value: string | null }) => p.value || "—" },
       {
         headerName: "품명",
         field: "item_name" as keyof ItemRow,
@@ -176,23 +173,6 @@ export function CatalogPage() {
     [],
   );
 
-  // M-IN-1 footer 패턴: pinnedBottomRowData로 총 건수 표시
-  const pinnedBottom = useMemo(
-    () => [
-      {
-        __isFooter: true,
-        source: null,
-        item_code_display: "합계",
-        large_category: null,
-        medium_category: null,
-        small_category: null,
-        item_name: `${totalCount.toLocaleString("ko-KR")} 건`,
-        spec: null,
-      } as unknown as ItemRow,
-    ],
-    [totalCount],
-  );
-
   const onGridReady = useCallback(
     (e: GridReadyEvent) => {
       gridApiRef.current = e.api;
@@ -206,10 +186,10 @@ export function CatalogPage() {
       <div className="page-h">
         <div>
           <h1>
-            품목 카탈로그
+            품목마스터 ▸ 카탈로그
             <span className="text-xs text-gray-500 font-normal ml-2">/ catalog</span>
           </h1>
-          <div className="meta">활성 items 전수 조회 (AG-Grid Infinite + Supabase range)</div>
+          <div className="meta">활성 items 전수 조회 · AG-Grid Infinite + Supabase range · 갱신: 실시간</div>
         </div>
         <div className="actions">
           <button className="btn-sec" type="button" disabled title="다음 단계">엑셀 다운로드</button>
@@ -225,27 +205,38 @@ export function CatalogPage() {
         onSearch={() => setAppliedFilters(filters)}
       />
 
-      <div className="section-title">품목 목록 (정렬·필터·리사이즈)</div>
-      <div className="ag-theme-quartz" style={{ height: 600 }}>
+      <div className="section-title">품목 목록 (정렬·필터·리사이즈 · 행 클릭 시 상세)</div>
+      <div className="ag-theme-quartz" style={{ height: 600, cursor: "pointer" }}>
         <AgGridReact
           columnDefs={columnDefs}
           rowModelType="infinite"
           cacheBlockSize={100}
           maxBlocksInCache={10}
           rowHeight={56}
-          headerHeight={30}
-          groupHeaderHeight={26}
+          headerHeight={36}
           suppressCellFocus
-          defaultColDef={{ sortable: true, resizable: true }}
-          pinnedBottomRowData={pinnedBottom}
-          getRowStyle={(p) =>
-            (p.data as unknown as { __isFooter?: boolean })?.__isFooter
-              ? { background: "#f0f2f7", fontWeight: 600 }
-              : undefined
-          }
+          suppressMenuHide
+          defaultColDef={{
+            sortable: true,
+            resizable: true,
+            filter: "agTextColumnFilter",
+            menuTabs: ["filterMenuTab", "generalMenuTab"],
+          }}
+          pagination
+          paginationPageSize={50}
+          paginationPageSizeSelector={[25, 50, 100, 200]}
           onGridReady={onGridReady}
+          onRowClicked={(e) => {
+            if (e.data) setSelectedItem(e.data as ItemRow);
+          }}
         />
       </div>
+
+      <ItemDetailDialog
+        item={selectedItem}
+        open={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+      />
     </section>
   );
 }
