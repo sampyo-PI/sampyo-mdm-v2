@@ -1,7 +1,22 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export function LoginPage() {
   const { user, signInGoogle, signOut, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // 로그인 직후 OAuth redirect로 /login에 안착했으면 카탈로그로 자동 이동
+  useEffect(() => {
+    if (user && !loading) {
+      const timer = setTimeout(() => navigate("/", { replace: true }), 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [user, loading, navigate]);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "(SSR)";
+  const base = import.meta.env.BASE_URL;
+  const redirectTo = `${origin}${base}login`.replace(/\/+/g, "/").replace(":/", "://");
 
   return (
     <section className="page-card">
@@ -37,6 +52,15 @@ export function LoginPage() {
             대부분 테이블은 인증 필수, 일부(companies/category_*) anon 허용
           </div>
         </div>
+      </div>
+
+      <div className="mt-6 callout">
+        <strong>OAuth 진단 정보</strong>
+        <ul className="mt-2 text-sm font-mono">
+          <li>window.location.origin: <code>{origin}</code></li>
+          <li>redirectTo: <code>{redirectTo}</code></li>
+          <li>현재 URL 해시: <code>{typeof window !== "undefined" ? (window.location.hash || "(없음)") : "(SSR)"}</code></li>
+        </ul>
       </div>
 
       <div className="mt-6 flex gap-3">

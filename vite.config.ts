@@ -2,6 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  // 사내 서버에서 mdm.sampyo.co.kr/v2/ path로 서빙 (Supabase OAuth가 IP 주소 redirect 거부 → hostname 사용)
+  // 빅뱅 전환 시 '/'로 복원 + nginx location 정리
+  base: "/v2/",
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 800,

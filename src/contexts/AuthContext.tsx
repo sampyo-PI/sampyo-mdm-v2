@@ -66,9 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInGoogle = async () => {
+    // Vite BASE_URL 그대로 사용 (/v2/ 또는 /). hostname 기반 → Supabase URI_ALLOW_LIST 매칭
+    const base = import.meta.env.BASE_URL; // 예: "/v2/" 또는 "/"
+    const redirectTo = `${window.location.origin}${base}login`.replace(/\/+/g, "/").replace(":/", "://");
+    // eslint-disable-next-line no-console
+    console.log("[auth] signInGoogle redirectTo:", redirectTo);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo },
     });
     if (error) alert(`Google 로그인 실패: ${error.message}`);
   };
