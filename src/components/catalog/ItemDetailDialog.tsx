@@ -78,7 +78,8 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
 
   return (
     <Transition show={open} as={Fragment}>
-      <Dialog onClose={onClose} className="relative z-50">
+      <Dialog onClose={onClose} className="relative z-[300]">
+        {/* Backdrop — Tailwind 직접 작성 (sds.css .modal-backdrop는 fixed/z-index 충돌) */}
         <TransitionChild
           as={Fragment}
           enter="ease-out duration-200"
@@ -88,20 +89,26 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="modal-backdrop open" aria-hidden="true" />
+          <div
+            className="fixed inset-0 z-[300]"
+            style={{ background: "rgba(15,23,42,0.55)" }}
+            aria-hidden="true"
+          />
         </TransitionChild>
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <TransitionChild
-            as={Fragment}
-            enter="ease-out duration-200"
-            enterFrom="opacity-0 scale-95"
-            enterTo="opacity-100 scale-100"
-            leave="ease-in duration-150"
-            leaveFrom="opacity-100 scale-100"
-            leaveTo="opacity-0 scale-95"
-          >
-            <DialogPanel className="modal detail">
+        {/* 모달 컨테이너 — items-start + outer scroll로 상단 잘림 방지 */}
+        <div className="fixed inset-0 z-[301] overflow-y-auto">
+          <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
+            <TransitionChild
+              as={Fragment}
+              enter="ease-out duration-200"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-150"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <DialogPanel className="modal detail">
               {/* ── 모달 헤더 (4줄 동일 폰트) ── */}
               <div className="modal-h">
                 <div className="head-left">
@@ -322,7 +329,8 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                 <button className="btn-pri" disabled>✏ 수정으로 이동</button>
               </div>
             </DialogPanel>
-          </TransitionChild>
+            </TransitionChild>
+          </div>
         </div>
       </Dialog>
     </Transition>
