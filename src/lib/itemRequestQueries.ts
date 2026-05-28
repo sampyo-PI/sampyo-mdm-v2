@@ -1,0 +1,209 @@
+import { supabase, rest } from "./supabase";
+
+export type AICategory = {
+  large: string;
+  medium: string;
+  small: string;
+  confidence: number;
+  source?: "ai" | "manual";
+};
+
+export type AIAttribute = {
+  id?: string;
+  name: string;
+  value: string;
+  unit: string;
+  confidence: number;
+};
+
+export type AISuggestedItem = {
+  code: string;
+  name: string;
+  similarity: number;
+  reason: string;
+};
+
+export type AIAnalysisResult = {
+  categories: AICategory[];
+  attributes: AIAttribute[];
+  duplicateRisk: { score: number; reason: string };
+  suggestedItems: AISuggestedItem[];
+  normalizedName: string;
+};
+
+export type CompanyOption = { id: string; code: string; name: string };
+export type SiteOption = { id: string; code: string; name: string; company_id: string };
+export type UnitOption = { id: string; code: string; name: string };
+export type MakerOption = { id: string; name: string };
+
+/** Supabase Edge Function: analyze-item 호출 */
+export async function callAnalyzeItem(input: {
+  itemName: string;
+  maker?: string;
+  model?: string;
+  spec?: string;
+}): Promise<AIAnalysisResult> {
+  const { data, error } = await supabase.functions.invoke<AIAnalysisResult>(
+    "analyze-item",
+    { body: input },
+  );
+  if (error) {
+    const ctx = (error as { context?: { response?: Response } }).context;
+    const status = ctx?.response?.status;
+    let bodyText = "";
+    try { bodyText = (await ctx?.response?.text()) ?? ""; } catch { /* ignore */ }
+    throw new Error(`[${status ?? "?"}] ${bodyText || error.message || "AI 분석 실패"}`);
+  }
+  if (!data) throw new Error("AI 분석 응답이 비어 있습니다");
+  return data;
+}
+
+/** 마스터 데이터 — 회사 / 사이트 / 단위 / 제조사 (rest 헬퍼 사용) */
+export async function fetchMasters(): Promise<{
+  companies: CompanyOption[];
+  sites: SiteOption[];
+  units: UnitOption[];
+  makers: MakerOption[];
+}> {
+  const [companies, sites, units, makers] = await Promise.all([
+    rest<CompanyOption[]>("GET", "companies", { params: { select: "id,code,name", is_active: "eq.true", order: "code.asc" } }),
+    rest<SiteOption[]>("GET", "sites", { params: { select: "id,code,name,company_id", is_active: "eq.true", order: "code.asc" } }),
+    rest<UnitOption[]>("GET", "units", { params: { select: "id,code,name", is_active: "eq.true", order: "code.asc" } }),
+    rest<MakerOption[]>("GET", "makers", { params: { select: "id,name", is_active: "eq.true", order: "name.asc" } }),
+  ]);
+  return { companies, sites, units, makers };
+}
+
+/** 신규 제조사 등록 — makers INSERT (rest), code는 트리거 자동생성 */
+export async function createMaker(name: string): Promise<MakerOption> {
+  const arr = await rest<MakerOption[]>("POST", "makers", {
+    params: { select: "id,name" },
+    body: { name, is_active: true },
+    prefer: "return=representation",
+  });
+  return arr[0];
+}
+
+/** 임시저장 (DRAFT) — item_requests INSERT. status는 default 'DRAFT'.
+ *  request_number는 generate_request_number 트리거가 자동 부여.
+ *  DRAFT는 ERP 트리거·검토 워크플로우 어디에도 진입 안 함 (안전).
+ */
+export type DraftInput = {
+  requesterId: string;
+  itemName: string;
+  maker?: string | null;
+  model?: string | null;
+  companyId?: string | null;
+  siteId?: string | null;
+  equipmentName?: string | null;
+  unit?: string | null;
+  spec?: string | null;
+  notes?: string | null;
+  imageUrls?: string[];
+  documentUrls?: string[];
+};
+
+/** Supabase Storage 업로드 — v1 동일 패턴 (item-request-files 버킷) */
+export const STORAGE_BUCKET = "item-request-files";
+
+export async function uploadAttachmentFiles(
+  userId: string,
+  imageFiles: File[],
+  docFiles: File[],
+): Promise<{ imageUrls: string[]; documentUrls: string[] }> {
+  const imageUrls: string[] = [];
+  const documentUrls: string[] = [];
+
+  for (const f of imageFiles) {
+    const filePath = `${userId}/${Date.now()}_${f.name}`;
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, f);
+    if (error) { console.warn("[upload] image fail:", f.name, error.message); continue; }
+    imageUrls.push(filePath);
+  }
+  for (const f of docFiles) {
+    const filePath = `${userId}/${Date.now()}_${f.name}`;
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, f);
+    if (error) { console.warn("[upload] doc fail:", f.name, error.message); continue; }
+    documentUrls.push(filePath);
+  }
+  return { imageUrls, documentUrls };
+}
+
+/** Storage signed URL 생성 — 첨부 미리보기용 */
+export async function getSignedUrl(path: string, expiresIn = 3600): Promise<string | null> {
+  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(path, expiresIn);
+  if (error) return null;
+  return data.signedUrl;
+}
+export async function saveDraft(input: DraftInput, existingId?: string | null): Promise<{ id: string; request_number: string }> {
+  const payload = {
+    requester_id: input.requesterId,
+    item_name: input.itemName,
+    maker: input.maker ?? null,
+    model: input.model ?? null,
+    company_id: input.companyId ?? null,
+    site_id: input.siteId ?? null,
+    equipment_name: input.equipmentName ?? null,
+    unit: input.unit ?? null,
+    spec: input.spec ?? null,
+    notes: input.notes ?? null,
+    image_urls: input.imageUrls ?? [],
+    document_urls: input.documentUrls ?? [],
+    status: "DRAFT" as const,
+  };
+  if (existingId) {
+    const arr = await rest<Array<{ id: string; request_number: string }>>(
+      "PATCH",
+      "item_requests",
+      { params: { id: `eq.${existingId}`, select: "id,request_number" }, body: payload, prefer: "return=representation" },
+    );
+    return arr[0];
+  }
+  const arr = await rest<Array<{ id: string; request_number: string }>>(
+    "POST",
+    "item_requests",
+    { params: { select: "id,request_number" }, body: { ...payload, request_number: "PENDING_GEN" }, prefer: "return=representation" },
+  );
+  return arr[0];
+}
+
+/** 본인 DRAFT 5건 fetch (이어쓰기용 카드) */
+export type DraftRow = {
+  id: string;
+  request_number: string;
+  item_name: string;
+  updated_at: string;
+};
+export async function fetchMyDrafts(userId: string): Promise<DraftRow[]> {
+  const data = await rest<DraftRow[]>("GET", "item_requests", {
+    params: {
+      select: "id,request_number,item_name,updated_at",
+      requester_id: `eq.${userId}`,
+      status: "eq.DRAFT",
+      order: "updated_at.desc",
+      limit: "5",
+    },
+  });
+  return data ?? [];
+}
+
+/** 기존 items에서 제조사 모델 distinct 추출 — 모델명 자동완성용 (rest) */
+export async function fetchModelsByMaker(makerName: string): Promise<string[]> {
+  if (!makerName.trim()) return [];
+  try {
+    const data = await rest<Array<{ model: string | null }>>("GET", "items", {
+      params: {
+        select: "model",
+        maker: `eq.${makerName}`,
+        is_active: "eq.true",
+        model: "not.is.null",
+        limit: "500",
+      },
+    });
+    const set = new Set<string>();
+    data.forEach((r) => r.model && set.add(r.model));
+    return [...set].sort();
+  } catch {
+    return [];
+  }
+}

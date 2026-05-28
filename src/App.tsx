@@ -2,7 +2,7 @@ import { BrowserRouter, useRoutes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppShell } from "./components/layout/AppShell";
 import { AuthProvider } from "./contexts/AuthContext";
-import { routes, SIDEBAR_GROUPS } from "./routes";
+import { routes, SIDEBAR_ITEMS } from "./routes";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false } },
@@ -24,10 +24,10 @@ function App() {
               subtitle: "v2 · SDS v0.1",
               gnb: [],
               // 검색바 미사용 (페이지별 필터로 충분)
-              qaPath: "/qa",
+              qaPath: "/qna",
               manualPath: "/manual",
             }}
-            sidebar={{ groups: SIDEBAR_GROUPS }}
+            sidebar={{ items: SIDEBAR_ITEMS }}
           >
             <AppRoutes />
           </AppShell>
