@@ -167,6 +167,131 @@ export async function saveDraft(input: DraftInput, existingId?: string | null): 
   return arr[0];
 }
 
+/** 제출 — DRAFT를 PENDING_AI_REVIEW로 전환 + ai-review-agent 호출
+ *  v2 격리: is_v2_test=true로 설정 (트리거 가드로 items/ERP 큐 미진입)
+ */
+export type SubmitInput = {
+  draftId: string;            // 기존 DRAFT id (saveDraft 결과)
+  version: number;            // 낙관적 잠금
+  smallCategoryId: string | null;  // 소분류 ID (compute_normalized_name용)
+  smallCategoryName: string | null;  // 소분류 명 (check_duplicate용)
+  largeCategory: string | null;
+  mediumCategory: string | null;
+  maker: string | null;
+  model: string | null;
+  spec: string | null;
+  equipmentName: string | null;
+  attributes: Array<{ name: string; value: string }>;  // 5속성
+};
+export type DuplicateCandidate = {
+  item_code: string;
+  item_code_display: string;
+  item_name: string;
+  normalized_name: string;
+  match_type: string;
+  severity: number;
+  variant_candidate?: boolean;
+};
+export type SubmitResult = {
+  ok: true;
+  requestNumber: string;
+  normalizedName: string | null;
+} | {
+  ok: false;
+  blocked: "duplicate" | "version_conflict";
+  candidates?: DuplicateCandidate[];
+  message: string;
+};
+
+export async function submitRequest(input: SubmitInput): Promise<SubmitResult> {
+  // 1) 표준명 계산
+  let normalizedName: string | null = null;
+  if (input.smallCategoryId) {
+    try {
+      const arr = await rest<string | null>("POST", "rpc/compute_normalized_name_for", {
+        body: {
+          p_small_category_id: input.smallCategoryId,
+          p_maker: input.maker,
+          p_model: input.model,
+          p_spec: input.spec,
+          p_equipment_name: input.equipmentName,
+          p_attributes: input.attributes,
+        },
+      });
+      // rest는 array 가정이라 단일 string 응답은 unknown으로 처리
+      normalizedName = typeof arr === "string" ? arr : (arr as unknown as { result?: string })?.result ?? null;
+    } catch (e) {
+      console.warn("[submit] compute_normalized_name_for failed:", e);
+    }
+  }
+
+  // 2) 중복 검사 (Hard duplicate exact 차단)
+  if (input.smallCategoryName && normalizedName) {
+    try {
+      const candidates = await rest<DuplicateCandidate[]>("POST", "rpc/check_item_duplicate", {
+        body: {
+          p_small_category: input.smallCategoryName,
+          p_normalized_name: normalizedName,
+          p_model: input.model,
+          p_exclude_item_id: null,
+          p_spec: input.spec,
+          p_maker: input.maker,
+        },
+      });
+      const exactSameMaker = candidates.some((c) => c.match_type === "normalized_exact" && !c.variant_candidate);
+      if (exactSameMaker) {
+        return {
+          ok: false,
+          blocked: "duplicate",
+          candidates,
+          message: `동일 표준명·제조사 품목이 이미 존재합니다: ${candidates[0].item_code_display}`,
+        };
+      }
+    } catch (e) {
+      console.warn("[submit] check_item_duplicate failed:", e);
+    }
+  }
+
+  // 3) item_requests UPDATE (DRAFT → PENDING_AI_REVIEW + is_v2_test=true)
+  type Updated = { id: string; request_number: string };
+  let updated: Updated[];
+  try {
+    updated = await rest<Updated[]>("PATCH", "item_requests", {
+      params: {
+        id: `eq.${input.draftId}`,
+        version: `eq.${input.version}`,
+        select: "id,request_number",
+      },
+      body: {
+        status: "PENDING_AI_REVIEW",
+        is_v2_test: true,
+        normalized_name: normalizedName,
+        large_category: input.largeCategory,
+        medium_category: input.mediumCategory,
+        attributes: input.attributes,
+        version: input.version + 1,
+      },
+      prefer: "return=representation",
+    });
+  } catch (e) {
+    return { ok: false, blocked: "version_conflict", message: `제출 실패: ${(e as Error).message}` };
+  }
+  if (!updated || updated.length === 0) {
+    return { ok: false, blocked: "version_conflict", message: "수정 충돌 (다른 곳에서 이미 수정됨). 새로고침 후 재시도." };
+  }
+
+  // 4) ai-review-agent 호출 (실패해도 silent — 검토자 수동 처리 가능)
+  try {
+    await supabase.functions.invoke("ai-review-agent", {
+      body: { request_id: input.draftId, shadow: false },
+    });
+  } catch (e) {
+    console.warn("[submit] ai-review-agent invoke failed (silent):", e);
+  }
+
+  return { ok: true, requestNumber: updated[0].request_number, normalizedName };
+}
+
 /** 본인 DRAFT 5건 fetch (이어쓰기용 카드) */
 export type DraftRow = {
   id: string;

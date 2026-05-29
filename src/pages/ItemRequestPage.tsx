@@ -8,6 +8,7 @@ import {
   saveDraft,
   fetchMyDrafts,
   uploadAttachmentFiles,
+  submitRequest,
   type AIAnalysisResult,
 } from "../lib/itemRequestQueries";
 import { OptionCombobox, type OptionItem } from "../components/common/OptionCombobox";
@@ -55,6 +56,11 @@ export function ItemRequestPage() {
   const [attrStars, setAttrStars] = useState<Set<string>>(new Set());
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMsg, setDraftMsg] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
+  // 낙관적 잠금 — saveDraft 후 받은 version (간단히 1부터 시작, 실제 DB version은 UPDATE 시 갱신)
+  const [draftVersion, setDraftVersion] = useState(1);
 
   // 첨부파일 — 신규 선택 + DRAFT 이어쓰기 시 기존 path 분리
   const [newImages, setNewImages] = useState<File[]>([]);
@@ -176,6 +182,77 @@ export function ItemRequestPage() {
       setDraftMsg(`저장 실패: ${(e as Error).message}`);
     } finally {
       setDraftSaving(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!ai) { alert("AI 분석 결과가 필요합니다"); return; }
+    const cat = ai.categories[selectedCategory];
+    if (!cat) { alert("분류를 선택하세요"); return; }
+    setSubmitting(true); setSubmitErr(null); setSubmitMsg(null);
+    try {
+      // draftId 없으면 자동 임시저장 → 신규 draftId 확보
+      let currentDraftId = draftId;
+      if (!currentDraftId) {
+        if (!user) throw new Error("로그인이 필요합니다");
+        if (!form.itemName.trim()) throw new Error("품목명을 입력하세요");
+        let newImgPaths: string[] = [];
+        let newDocPaths: string[] = [];
+        if (newImages.length > 0 || newDocs.length > 0) {
+          const up = await uploadAttachmentFiles(user.id, newImages, newDocs);
+          newImgPaths = up.imageUrls; newDocPaths = up.documentUrls;
+        }
+        const allImagePaths = [...existingImages, ...newImgPaths];
+        const allDocPaths = [...existingDocs, ...newDocPaths];
+        const dr = await saveDraft({
+          requesterId: user.id, itemName: form.itemName,
+          maker: form.makerName || null, model: form.model || null,
+          companyId: form.companyId, siteId: form.siteId,
+          equipmentName: form.equipmentName || null, unit: form.unit || null,
+          spec: form.spec || null, notes: form.notes || null,
+          imageUrls: allImagePaths, documentUrls: allDocPaths,
+        }, null);
+        currentDraftId = dr.id;
+        setDraftId(dr.id);
+        setExistingImages(allImagePaths); setExistingDocs(allDocPaths);
+        setNewImages([]); setNewDocs([]);
+      }
+
+      // 소분류 ID 조회
+      const { rest } = await import("../lib/supabase");
+      const arr = await rest<Array<{ id: string }>>("GET", "category_small", {
+        params: { name: `eq.${cat.small}`, select: "id", limit: "1" },
+      });
+      const smallCategoryId = arr[0]?.id ?? null;
+
+      const result = await submitRequest({
+        draftId: currentDraftId,
+        version: draftVersion,
+        smallCategoryId,
+        smallCategoryName: cat.small,
+        largeCategory: cat.large,
+        mediumCategory: cat.medium,
+        maker: form.makerName || null,
+        model: form.model || null,
+        spec: form.spec || null,
+        equipmentName: form.equipmentName || null,
+        attributes: ai.attributes.map((a) => ({ name: a.name, value: a.value })),
+      });
+
+      if (!result.ok) {
+        setSubmitErr(result.message);
+        return;
+      }
+      setSubmitMsg(`✅ 제출 완료: ${result.requestNumber} → 1차 AI 검토 자동 진행 (v2 격리 데이터)`);
+      setDraftVersion(draftVersion + 1);
+      // 폼 초기화 — 다음 신청 가능
+      setTimeout(() => {
+        if (confirm("제출 완료. 요청목록으로 이동하시겠습니까?")) navigate("/requests");
+      }, 1500);
+    } catch (e) {
+      setSubmitErr(`제출 중 예외: ${(e as Error).message}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -623,8 +700,15 @@ export function ItemRequestPage() {
                       {selectedCategory === i && <span className="cat-check">✓</span>}
                     </div>
                     <div className="cat-path">{c.large} ▸ {c.medium} ▸ {c.small}</div>
-                    <div className="conf-bar"><div className="fill" style={{ width: `${Math.round(c.confidence * 100)}%` }}></div></div>
-                    <div className="conf-text"><span>신뢰도</span><span className="pct">{Math.round(c.confidence * 100)}%</span></div>
+                    {(() => {
+                      const pct = Math.round(c.confidence > 1 ? c.confidence : c.confidence * 100);
+                      return (
+                        <>
+                          <div className="conf-bar"><div className="fill" style={{ width: `${pct}%` }}></div></div>
+                          <div className="conf-text"><span>신뢰도</span><span className="pct">{pct}%</span></div>
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -697,12 +781,37 @@ export function ItemRequestPage() {
             </div>
           )}
 
+          {/* 제출 결과 메시지 */}
+          {submitMsg && (
+            <div style={{ marginTop: 12, padding: "10px 14px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 6, color: "#166534", fontSize: 13 }}>
+              {submitMsg}
+            </div>
+          )}
+          {submitErr && (
+            <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#991b1b", fontSize: 13 }}>
+              ⚠ {submitErr}
+            </div>
+          )}
+
           {/* AI 액션 */}
           <div className="ai-actions">
-            <button className="btn-sec" onClick={handleAI} disabled={aiLoading}>🔄 다시 분석</button>
+            <button className="btn-sec" onClick={handleAI} disabled={aiLoading || submitting}>🔄 다시 분석</button>
             <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn-sec" disabled title="Phase 2 — RPC 연결 예정">💾 임시저장</button>
-              <button className="btn-pri" disabled title="Phase 2 — RPC 연결 예정">📤 검토 요청 → 제출</button>
+              <button
+                className="btn-sec"
+                onClick={handleDraftSave}
+                disabled={draftSaving || submitting || !form.itemName.trim()}
+              >
+                {draftSaving ? "저장 중…" : "💾 임시저장"}
+              </button>
+              <button
+                className="btn-pri"
+                onClick={handleSubmit}
+                disabled={submitting || !ai}
+                title={!ai ? "AI 분석 먼저 실행" : "검토 요청 → PENDING_AI_REVIEW (is_v2_test 격리)"}
+              >
+                {submitting ? "제출 중…" : "📤 검토 요청 → 제출"}
+              </button>
             </div>
           </div>
         </div>

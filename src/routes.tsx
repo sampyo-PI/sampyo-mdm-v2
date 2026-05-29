@@ -11,6 +11,12 @@ const CatalogPage = lazy(() => import("./pages/CatalogPage").then((m) => ({ defa
 const RequestsPage = lazy(() => import("./pages/RequestsPage").then((m) => ({ default: m.RequestsPage })));
 const ApprovalDetailPage = lazy(() => import("./pages/ApprovalDetailPage").then((m) => ({ default: m.ApprovalDetailPage })));
 const ItemRequestPage = lazy(() => import("./pages/ItemRequestPage").then((m) => ({ default: m.ItemRequestPage })));
+const QAListPage = lazy(() => import("./pages/QAListPage").then((m) => ({ default: m.QAListPage })));
+const QAThreadPage = lazy(() => import("./pages/QAThreadPage").then((m) => ({ default: m.QAThreadPage })));
+const ManualPage = lazy(() => import("./pages/ManualPage").then((m) => ({ default: m.ManualPage })));
+const AIDashboardPage = lazy(() => import("./pages/AIDashboardPage").then((m) => ({ default: m.AIDashboardPage })));
+const AIQualityPage = lazy(() => import("./pages/AIQualityPage").then((m) => ({ default: m.AIQualityPage })));
+const AdminAIReviewPage = lazy(() => import("./pages/AdminAIReviewPage").then((m) => ({ default: m.AdminAIReviewPage })));
 
 function PageLoader() {
   return <div className="p-6 text-text-sub">로딩 중…</div>;
@@ -49,9 +55,9 @@ export const routes: RouteObject[] = [
   { path: "/maker-model", element: ph("제조사리스트", "/maker-model") },
 
   // AI 관리 (admin)
-  { path: "/ai/dashboard", element: ph("AI 시스템 현황", "/ai/dashboard") },
-  { path: "/ai/quality", element: ph("AI 분류 정확도", "/ai/quality") },
-  { path: "/admin/ai-review", element: ph("AI 1차 검토 통계", "/admin/ai-review") },
+  { path: "/ai/dashboard", element: withSuspense(<AIDashboardPage />) },
+  { path: "/ai/quality", element: withSuspense(<AIQualityPage />) },
+  { path: "/admin/ai-review", element: withSuspense(<AdminAIReviewPage />) },
 
   // 시스템관리
   { path: "/admin/users", element: ph("사용자관리", "/admin/users") },
@@ -61,7 +67,11 @@ export const routes: RouteObject[] = [
   { path: "/distribution", element: ph("ERP배포현황", "/distribution") },
 
   // 개선요청
-  { path: "/qna", element: ph("개선요청 (Q&A)", "/qna") },
+  { path: "/qna", element: withSuspense(<QAListPage />) },
+  { path: "/qna/thread/:id", element: withSuspense(<QAThreadPage />) },
+
+  // 매뉴얼
+  { path: "/manual", element: withSuspense(<ManualPage />) },
 
   // 인증
   { path: "/login", element: <LoginPage /> },

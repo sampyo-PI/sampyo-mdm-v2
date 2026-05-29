@@ -1,12 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchApprovalBundle,
   getStepStates,
   type ApprovalBundle,
 } from "../lib/approvalQueries";
 import { STATUS_LABEL } from "../lib/requestsQueries";
+import {
+  approveRequest, rejectRequest, escalateToRequester,
+  checkTeamReviewer, getCurrentReviewStep, getNextStatus,
+} from "../lib/approvalActions";
+import { useAuth } from "../contexts/AuthContext";
 
 function fmtDate(d: string | null | undefined) {
   if (!d) return "—";
@@ -46,7 +51,12 @@ function ReviewInline({ bundle }: { bundle: ApprovalBundle }) {
 export function ApprovalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user, reviewerCompanyIds, isAdmin } = useAuth();
   const [reviewComment, setReviewComment] = useState("");
+  const [actionMsg, setActionMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [submitting, setSubmitting] = useState<null | "approve" | "reject" | "escalate">(null);
+  const [teamReviewerAllowed, setTeamReviewerAllowed] = useState(false);
 
   const q = useQuery({
     queryKey: ["approval", id],
@@ -56,6 +66,74 @@ export function ApprovalDetailPage() {
   });
 
   const bundle = q.data;
+
+  // 검토자 권한 가드 — current step 기준
+  const currentStep = bundle ? getCurrentReviewStep(bundle.request.status) : null;
+  const nextStatus = bundle ? getNextStatus(bundle.request.status) : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!bundle || !user || !currentStep) {
+        setTeamReviewerAllowed(false);
+        return;
+      }
+      // step 1은 회사 기반 (reviewerCompanyIds), step 2/3은 팀 기반 RPC
+      if (currentStep === 1) {
+        const cid = bundle.request.company_id;
+        setTeamReviewerAllowed(!!cid && (isAdmin || reviewerCompanyIds.includes(cid)));
+        return;
+      }
+      const ok = await checkTeamReviewer(user.id, bundle.request.id, currentStep);
+      if (!cancelled) setTeamReviewerAllowed(ok || isAdmin);
+    })();
+    return () => { cancelled = true; };
+  }, [bundle, user, currentStep, reviewerCompanyIds, isAdmin]);
+
+  const isSelfRequester = !!user && !!bundle && bundle.request.requester_id === user.id;
+  const canAct = teamReviewerAllowed && !isSelfRequester && !!currentStep;
+  const isV2Test = !!bundle && (bundle.request as unknown as { is_v2_test?: boolean }).is_v2_test === true;
+
+  const handleApprove = async () => {
+    if (!bundle || !user) return;
+    setSubmitting("approve"); setActionMsg(null);
+    const res = await approveRequest({ request: bundle.request, userId: user.id, comment: reviewComment.trim() || null });
+    setSubmitting(null);
+    if (!res.ok) { setActionMsg({ kind: "err", text: res.message }); return; }
+    const label = res.nextStatus === "APPROVED"
+      ? (res.itemCode ? `최종 승인 완료 · 품목코드 ${res.itemCode}` : "최종 승인 완료")
+      : `${res.nextStatus === "PENDING_REVIEW_2" ? "2차" : "3차"} 검토로 이동`;
+    setActionMsg({ kind: "ok", text: `✅ ${label}${isV2Test ? " (v2-test 격리: ERP 큐/items 미진입)" : ""}` });
+    await queryClient.invalidateQueries({ queryKey: ["approval", id] });
+    setTimeout(() => { if (confirm("처리 완료. 요청목록으로 이동?")) navigate("/requests"); }, 1500);
+  };
+
+  const handleReject = async () => {
+    if (!bundle || !user) return;
+    if (!reviewComment.trim()) { setActionMsg({ kind: "err", text: "반려 사유를 입력하세요" }); return; }
+    setSubmitting("reject"); setActionMsg(null);
+    const res = await rejectRequest({ request: bundle.request, userId: user.id, comment: reviewComment.trim() });
+    setSubmitting(null);
+    if (!res.ok) { setActionMsg({ kind: "err", text: res.message }); return; }
+    setActionMsg({ kind: "ok", text: "✅ 반려 완료" });
+    await queryClient.invalidateQueries({ queryKey: ["approval", id] });
+    setTimeout(() => { if (confirm("반려 완료. 요청목록으로 이동?")) navigate("/requests"); }, 1500);
+  };
+
+  const handleEscalate = async () => {
+    if (!bundle) return;
+    if (!reviewComment.trim() || reviewComment.trim().length < 5) {
+      setActionMsg({ kind: "err", text: "보완 사유를 5자 이상 입력하세요" });
+      return;
+    }
+    setSubmitting("escalate"); setActionMsg(null);
+    const res = await escalateToRequester({ request: bundle.request, comment: reviewComment.trim() });
+    setSubmitting(null);
+    if (!res.ok) { setActionMsg({ kind: "err", text: res.message }); return; }
+    setActionMsg({ kind: "ok", text: "✅ 신청자에게 보완 요청 전달" });
+    await queryClient.invalidateQueries({ queryKey: ["approval", id] });
+    setTimeout(() => { if (confirm("보완 요청 완료. 요청목록으로 이동?")) navigate("/requests"); }, 1500);
+  };
   const attributes = useMemo(() => {
     if (!bundle?.request.attributes) return [];
     const a = bundle.request.attributes as unknown;
@@ -229,8 +307,15 @@ export function ApprovalDetailPage() {
             {r.category_confidence != null && (
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14 }}>
                 <span className="text-xs" style={{ color: "#64748b" }}>AI 분류 신뢰도</span>
-                <div className="conf-bar"><div className="fill" style={{ width: `${Math.round(r.category_confidence * 100)}%` }}></div></div>
-                <span className="text-xs font-bold" style={{ color: "#003876" }}>{Math.round(r.category_confidence * 100)}%</span>
+                {(() => {
+                  const pct = Math.round((r.category_confidence ?? 0) > 1 ? r.category_confidence! : (r.category_confidence ?? 0) * 100);
+                  return (
+                    <>
+                      <div className="conf-bar"><div className="fill" style={{ width: `${pct}%` }}></div></div>
+                      <span className="text-xs font-bold" style={{ color: "#003876" }}>{pct}%</span>
+                    </>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -347,22 +432,57 @@ export function ApprovalDetailPage() {
             <div className="hint" style={{ marginTop: 6 }}>반려·보완 요청 시 필수 (5자 이상)</div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
-              <button className="btn-approve" disabled title="Phase 2 — RPC 연결 예정">
+              <button
+                className="btn-approve"
+                disabled={!canAct || submitting !== null}
+                onClick={handleApprove}
+                title={!canAct ? (isSelfRequester ? "본인 신청건은 검토 불가" : "검토자 권한이 없습니다") : `→ ${nextStatus === "APPROVED" ? "최종 승인" : nextStatus === "PENDING_REVIEW_2" ? "2차 검토" : "3차 검토"}`}
+              >
                 <span>✓</span>
-                <span>승인 → 다음 단계</span>
+                <span>{submitting === "approve" ? "처리 중…" : (nextStatus === "APPROVED" ? "최종 승인" : "승인 → 다음 단계")}</span>
               </button>
-              <button className="btn-escalate" disabled title="Phase 2 — RPC 연결 예정">
-                <span>↩</span>
-                <span>보완 요청 (신청자)</span>
-              </button>
-              <button className="btn-reject" disabled title="Phase 2 — RPC 연결 예정">
+              {(currentStep === 2 || currentStep === 3) && (
+                <button
+                  className="btn-escalate"
+                  disabled={!canAct || submitting !== null}
+                  onClick={handleEscalate}
+                  title="신청자에게 보완 요청 (5자 이상)"
+                >
+                  <span>↩</span>
+                  <span>{submitting === "escalate" ? "처리 중…" : "보완 요청 (신청자)"}</span>
+                </button>
+              )}
+              <button
+                className="btn-reject"
+                disabled={!canAct || submitting !== null}
+                onClick={handleReject}
+                title={!canAct ? "검토자 권한이 없습니다" : "반려 (사유 필수)"}
+              >
                 <span>✕</span>
-                <span>반려</span>
+                <span>{submitting === "reject" ? "처리 중…" : "반려"}</span>
               </button>
             </div>
-            <div className="text-xs" style={{ color: "#94a3b8", marginTop: 10, textAlign: "center" }}>
-              ⓘ 액션 RPC 연결은 Phase 2 (read-only)
-            </div>
+            {actionMsg && (
+              <div className="text-xs" style={{
+                marginTop: 10, padding: "8px 10px", borderRadius: 6,
+                background: actionMsg.kind === "ok" ? "#ecfdf5" : "#fef2f2",
+                color: actionMsg.kind === "ok" ? "#065f46" : "#991b1b",
+                border: actionMsg.kind === "ok" ? "1px solid #6ee7b7" : "1px solid #fca5a5",
+              }}>{actionMsg.text}</div>
+            )}
+            {!canAct && (
+              <div className="text-xs" style={{ color: "#94a3b8", marginTop: 10, textAlign: "center" }}>
+                ⓘ {isSelfRequester ? "본인 신청건 (검토 불가)"
+                   : !currentStep ? "이미 처리 완료된 요청"
+                   : !teamReviewerAllowed ? `${currentStep}차 검토자 권한 없음`
+                   : "권한 확인 중…"}
+              </div>
+            )}
+            {canAct && isV2Test && (
+              <div className="text-xs" style={{ color: "#7c3aed", marginTop: 10, textAlign: "center", fontWeight: 600 }}>
+                🆕 v2-test 격리 행 · 승인 시 ERP/items 미진입
+              </div>
+            )}
           </div>
 
           {/* 최근 활동 */}
