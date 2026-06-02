@@ -1,6 +1,5 @@
 import { type RouteObject } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ConnectionTestPage } from "./pages/ConnectionTestPage";
 import { LoginPage } from "./pages/LoginPage";
 import type { SidebarItem } from "./components/layout/Sidebar";
@@ -27,6 +26,8 @@ const ClassificationMappingPage = lazy(() => import("./pages/ClassificationMappi
 const AttributeListPage = lazy(() => import("./pages/AttributeListPage").then((m) => ({ default: m.AttributeListPage })));
 const UnitListPage = lazy(() => import("./pages/UnitListPage").then((m) => ({ default: m.UnitListPage })));
 const MakerListPage = lazy(() => import("./pages/MakerListPage").then((m) => ({ default: m.MakerListPage })));
+const CatalogUploadPage = lazy(() => import("./pages/CatalogUploadPage").then((m) => ({ default: m.CatalogUploadPage })));
+const IncludeInNameReviewPage = lazy(() => import("./pages/IncludeInNameReviewPage").then((m) => ({ default: m.IncludeInNameReviewPage })));
 
 function PageLoader() {
   return <div className="p-6 text-text-sub">로딩 중…</div>;
@@ -35,8 +36,6 @@ function PageLoader() {
 function withSuspense(node: React.ReactNode) {
   return <Suspense fallback={<PageLoader />}>{node}</Suspense>;
 }
-
-const ph = (title: string, path: string) => <PlaceholderPage title={title} path={path} />;
 
 export const routes: RouteObject[] = [
   // 진입
@@ -50,12 +49,12 @@ export const routes: RouteObject[] = [
 
   // 품목마스터
   { path: "/catalog", element: withSuspense(<CatalogPage />) },
-  { path: "/catalog/upload", element: ph("데이터 업로드", "/catalog/upload") },
+  { path: "/catalog/upload", element: withSuspense(<CatalogUploadPage />) },
 
   // 분류관리
   { path: "/classification/tree", element: withSuspense(<ClassificationTreePage />) },
   { path: "/classification/mapping", element: withSuspense(<ClassificationMappingPage />) },
-  { path: "/classification/include-in-name", element: ph("품목명 관리", "/classification/include-in-name") },
+  { path: "/classification/include-in-name", element: withSuspense(<IncludeInNameReviewPage />) },
 
   // 속성마스터
   { path: "/attribute/list", element: withSuspense(<AttributeListPage />) },
