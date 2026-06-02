@@ -17,6 +17,16 @@ const ManualPage = lazy(() => import("./pages/ManualPage").then((m) => ({ defaul
 const AIDashboardPage = lazy(() => import("./pages/AIDashboardPage").then((m) => ({ default: m.AIDashboardPage })));
 const AIQualityPage = lazy(() => import("./pages/AIQualityPage").then((m) => ({ default: m.AIQualityPage })));
 const AdminAIReviewPage = lazy(() => import("./pages/AdminAIReviewPage").then((m) => ({ default: m.AdminAIReviewPage })));
+const UserManagementPage = lazy(() => import("./pages/UserManagementPage").then((m) => ({ default: m.UserManagementPage })));
+const AdminReviewersPage = lazy(() => import("./pages/AdminReviewersPage").then((m) => ({ default: m.AdminReviewersPage })));
+const OrganizationPage = lazy(() => import("./pages/OrganizationPage").then((m) => ({ default: m.OrganizationPage })));
+const ERPAdminPage = lazy(() => import("./pages/ERPAdminPage").then((m) => ({ default: m.ERPAdminPage })));
+const DistributionMonitorPage = lazy(() => import("./pages/DistributionMonitorPage").then((m) => ({ default: m.DistributionMonitorPage })));
+const ClassificationTreePage = lazy(() => import("./pages/ClassificationTreePage").then((m) => ({ default: m.ClassificationTreePage })));
+const ClassificationMappingPage = lazy(() => import("./pages/ClassificationMappingPage").then((m) => ({ default: m.ClassificationMappingPage })));
+const AttributeListPage = lazy(() => import("./pages/AttributeListPage").then((m) => ({ default: m.AttributeListPage })));
+const UnitListPage = lazy(() => import("./pages/UnitListPage").then((m) => ({ default: m.UnitListPage })));
+const MakerListPage = lazy(() => import("./pages/MakerListPage").then((m) => ({ default: m.MakerListPage })));
 
 function PageLoader() {
   return <div className="p-6 text-text-sub">로딩 중…</div>;
@@ -43,16 +53,16 @@ export const routes: RouteObject[] = [
   { path: "/catalog/upload", element: ph("데이터 업로드", "/catalog/upload") },
 
   // 분류관리
-  { path: "/classification/tree", element: ph("분류 체계", "/classification/tree") },
-  { path: "/classification/mapping", element: ph("분류-속성 매핑", "/classification/mapping") },
+  { path: "/classification/tree", element: withSuspense(<ClassificationTreePage />) },
+  { path: "/classification/mapping", element: withSuspense(<ClassificationMappingPage />) },
   { path: "/classification/include-in-name", element: ph("품목명 관리", "/classification/include-in-name") },
 
   // 속성마스터
-  { path: "/attribute/list", element: ph("속성 목록", "/attribute/list") },
-  { path: "/unit", element: ph("단위 관리", "/unit") },
+  { path: "/attribute/list", element: withSuspense(<AttributeListPage />) },
+  { path: "/unit", element: withSuspense(<UnitListPage />) },
 
   // 제조사관리
-  { path: "/maker-model", element: ph("제조사리스트", "/maker-model") },
+  { path: "/maker-model", element: withSuspense(<MakerListPage />) },
 
   // AI 관리 (admin)
   { path: "/ai/dashboard", element: withSuspense(<AIDashboardPage />) },
@@ -60,11 +70,11 @@ export const routes: RouteObject[] = [
   { path: "/admin/ai-review", element: withSuspense(<AdminAIReviewPage />) },
 
   // 시스템관리
-  { path: "/admin/users", element: ph("사용자관리", "/admin/users") },
-  { path: "/admin/reviewers", element: ph("검토자 설정", "/admin/reviewers") },
-  { path: "/admin/organization", element: ph("조직관리", "/admin/organization") },
-  { path: "/admin/erp", element: ph("배포ERP관리", "/admin/erp") },
-  { path: "/distribution", element: ph("ERP배포현황", "/distribution") },
+  { path: "/admin/users", element: withSuspense(<UserManagementPage />) },
+  { path: "/admin/reviewers", element: withSuspense(<AdminReviewersPage />) },
+  { path: "/admin/organization", element: withSuspense(<OrganizationPage />) },
+  { path: "/admin/erp", element: withSuspense(<ERPAdminPage />) },
+  { path: "/distribution", element: withSuspense(<DistributionMonitorPage />) },
 
   // 개선요청
   { path: "/qna", element: withSuspense(<QAListPage />) },

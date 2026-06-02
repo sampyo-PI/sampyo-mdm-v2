@@ -1,6 +1,48 @@
+import { useQuery } from "@tanstack/react-query";
+import { rpc } from "../lib/supabase";
+
+type DashboardStats = {
+  large_count: number;
+  medium_count: number;
+  small_count: number;
+  mapped_small_count: number;
+  total_attribute_mappings: number;
+  active_items_count: number;
+  usage_last7days: Array<{ date: string; count: number }>;
+  usage_total_7d: number;
+  active_users_7d: number;
+  top_function_7d: string | null;
+};
+
+function fmtNum(n: number | undefined): string {
+  if (n == null) return "—";
+  return n.toLocaleString("ko-KR");
+}
+
+function buildLast7Days(usage: Array<{ date: string; count: number }>): number[] {
+  // 7일 배열 0으로 초기화 후 일자별 count 채움 (가장 오래된 날 → 오늘)
+  const arr = new Array(7).fill(0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const map = new Map(usage.map((u) => [u.date, u.count]));
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today.getTime() - (6 - i) * dayMs);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    arr[i] = map.get(key) ?? 0;
+  }
+  return arr;
+}
+
 export function AIDashboardPage() {
-  const usageData = [42, 38, 51, 47, 63, 28, 19];
-  const maxVal = Math.max(...usageData);
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["ai-dashboard-stats"],
+    queryFn: () => rpc<DashboardStats>("get_ai_dashboard_stats"),
+    staleTime: 60_000,
+  });
+
+  const usageData = buildLast7Days(data?.usage_last7days ?? []);
+  const maxVal = Math.max(...usageData, 1);
   const chartH = 160;
   const chartW = 700;
   const padX = 30;
@@ -14,26 +56,39 @@ export function AIDashboardPage() {
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
   const areaPath = `${linePath} L ${points[points.length - 1].x} ${chartH - padY} L ${points[0].x} ${chartH - padY} Z`;
 
+  const mappingPct =
+    data && data.small_count > 0 ? Math.round((data.mapped_small_count / data.small_count) * 100) : 0;
+  const dailyAvg = data ? Math.round(data.usage_total_7d / 7) : 0;
+
   return (
     <section className="page-card">
       <div className="page-h">
         <div>
           <h1>AI 시스템 현황 <span className="text-xs text-gray-500 font-normal ml-2">/ ai/dashboard</span></h1>
-          <div className="meta">분류 마스터 상태 · AI 사용량 · 최근 24h LIVE</div>
+          <div className="meta">
+            분류 마스터 상태 · AI 사용량 · 최근 7일 집계
+            {isLoading && " · 불러오는 중…"}
+          </div>
         </div>
         <div className="actions">
-          <button className="btn-sec">🔄 새로고침</button>
+          <button className="btn-sec" onClick={() => refetch()} disabled={isFetching}>
+            🔄 {isFetching ? "갱신 중…" : "새로고침"}
+          </button>
         </div>
       </div>
 
       <div className="section-title">분류 마스터</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
-        <div className="kpi"><div className="label">대분류</div><div className="val">15</div></div>
-        <div className="kpi"><div className="label">중분류</div><div className="val">98</div></div>
-        <div className="kpi"><div className="label">소분류</div><div className="val">652</div></div>
-        <div className="kpi accent"><div className="label">매핑 완료</div><div className="val">652<span className="text-xs text-gray-500 font-normal ml-1">/ 652</span></div><div className="delta" style={{ color: "#16a34a" }}>100% ✓</div></div>
-        <div className="kpi"><div className="label">총 속성 매핑</div><div className="val">4,770</div></div>
-        <div className="kpi"><div className="label">전체 품목 (활성)</div><div className="val">29,977</div></div>
+        <div className="kpi"><div className="label">대분류</div><div className="val">{fmtNum(data?.large_count)}</div></div>
+        <div className="kpi"><div className="label">중분류</div><div className="val">{fmtNum(data?.medium_count)}</div></div>
+        <div className="kpi"><div className="label">소분류</div><div className="val">{fmtNum(data?.small_count)}</div></div>
+        <div className="kpi accent">
+          <div className="label">매핑 완료</div>
+          <div className="val">{fmtNum(data?.mapped_small_count)}<span className="text-xs text-gray-500 font-normal ml-1">/ {fmtNum(data?.small_count)}</span></div>
+          <div className="delta" style={{ color: mappingPct === 100 ? "#16a34a" : "#f59e0b" }}>{mappingPct}% {mappingPct === 100 ? "✓" : ""}</div>
+        </div>
+        <div className="kpi"><div className="label">총 속성 매핑</div><div className="val">{fmtNum(data?.total_attribute_mappings)}</div></div>
+        <div className="kpi"><div className="label">전체 품목 (활성)</div><div className="val">{fmtNum(data?.active_items_count)}</div></div>
       </div>
 
       <div className="section-title" style={{ marginTop: 24 }}>AI 사용량 (최근 7일)</div>
@@ -66,10 +121,10 @@ export function AIDashboardPage() {
           })}
         </svg>
         <div style={{ display: "flex", justifyContent: "space-around", marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--c-border)" }}>
-          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>7일 합계</span> <strong style={{ color: "var(--c-text)" }}>288건</strong></div>
-          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>일평균</span> <strong style={{ color: "var(--c-text)" }}>41건</strong></div>
-          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>평균 응답시간</span> <strong style={{ color: "var(--c-text)" }}>2.3s</strong></div>
-          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>토큰 사용량</span> <strong style={{ color: "var(--c-text)" }}>1.24M</strong></div>
+          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>7일 합계</span> <strong style={{ color: "var(--c-text)" }}>{fmtNum(data?.usage_total_7d)}건</strong></div>
+          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>일평균</span> <strong style={{ color: "var(--c-text)" }}>{fmtNum(dailyAvg)}건</strong></div>
+          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>활성 사용자</span> <strong style={{ color: "var(--c-text)" }}>{fmtNum(data?.active_users_7d)}명</strong></div>
+          <div className="text-xs"><span style={{ color: "var(--c-text-sub)" }}>최다 호출</span> <strong style={{ color: "var(--c-text)" }}>{data?.top_function_7d ?? "—"}</strong></div>
         </div>
       </div>
 

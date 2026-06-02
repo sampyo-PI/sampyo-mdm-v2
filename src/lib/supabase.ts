@@ -62,3 +62,23 @@ export async function rest<T = unknown>(
   }
   return (await r.json()) as T;
 }
+
+/** RPC 호출 native fetch wrapper — supabase.rpc() hang 우회 */
+export async function rpc<T = unknown>(fnName: string, args?: Record<string, unknown>): Promise<T> {
+  const accessToken = readAccessTokenFromLocalStorage() ?? SUPABASE_PUBLISHABLE_KEY;
+  const url = `${SUPABASE_URL}/rest/v1/rpc/${fnName}`;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(args ?? {}),
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`rpc ${fnName} → ${r.status}: ${txt}`);
+  }
+  return (await r.json()) as T;
+}
