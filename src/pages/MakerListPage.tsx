@@ -1,41 +1,17 @@
 import { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, type ColDef, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
+import { rest, rpc } from "../lib/supabase";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-type Maker = { code: string; name: string; description: string; usage: number; is_active: boolean; aliases?: string[] };
-
-const MAKERS: Maker[] = [
-  { code: "SKF", name: "SKF", description: "스웨덴 베어링 제조사", usage: 1842, is_active: true, aliases: ["에스케이에프"] },
-  { code: "NSK", name: "NSK", description: "일본 베어링 제조사", usage: 1521, is_active: true },
-  { code: "FAG", name: "FAG", description: "독일 베어링 제조사", usage: 987, is_active: true },
-  { code: "MITSUBISHI", name: "Mitsubishi", description: "미쓰비시 (모터·전기)", usage: 842, is_active: true, aliases: ["미쓰비시", "Mits"] },
-  { code: "ABB", name: "ABB", description: "ABB Group (모터·드라이브)", usage: 754, is_active: true },
-  { code: "SIEMENS", name: "Siemens", description: "지멘스 (자동화·전기)", usage: 642, is_active: true, aliases: ["지멘스"] },
-  { code: "PARKER", name: "Parker", description: "파커 (유압·공압)", usage: 487, is_active: true },
-  { code: "HYUNDAI", name: "현대중공업", description: "현대중공업", usage: 421, is_active: true },
-  { code: "DOOSAN", name: "두산", description: "두산공작기계·중공업", usage: 398, is_active: true },
-  { code: "KOMATSU", name: "Komatsu", description: "고마쓰 (중장비)", usage: 354, is_active: true },
-  { code: "CAT", name: "Caterpillar", description: "캐터필러", usage: 312, is_active: true },
-  { code: "VOLVO", name: "Volvo", description: "볼보 (트럭·중장비)", usage: 287, is_active: true },
-  { code: "BOSCH", name: "Bosch", description: "보쉬 (전동공구·센서)", usage: 245, is_active: true, aliases: ["보쉬"] },
-  { code: "OMRON", name: "Omron", description: "오므론 (센서·제어)", usage: 198, is_active: true },
-  { code: "DANFOSS", name: "Danfoss", description: "단포스 (밸브·드라이브)", usage: 142, is_active: true },
-  { code: "FESTO", name: "Festo", description: "페스토 (공압)", usage: 121, is_active: true },
-  { code: "FANUC", name: "Fanuc", description: "FANUC (CNC·로봇)", usage: 98, is_active: true },
-  { code: "EATON", name: "Eaton", description: "이튼 (전기·유압)", usage: 87, is_active: true },
-  { code: "SCHNEIDER", name: "Schneider", description: "슈나이더 일렉트릭", usage: 64, is_active: true },
-  { code: "REXROTH", name: "Rexroth", description: "보쉬 렉스로스", usage: 32, is_active: false },
-];
+type MakerRow = { code: string; name: string; description: string | null; is_active: boolean };
+type Maker = { code: string; name: string; description: string; usage: number; is_active: boolean };
 
 const CodeChip = ({ value }: { value: string }) => <span className="maker-code">{value}</span>;
-const AliasCell = ({ aliases }: { aliases: string[] | undefined }) => {
-  if (!aliases || aliases.length === 0) return <span style={{ color: "#cbd5e1" }}>—</span>;
-  return <>{aliases.map((a, i) => <span key={i} className="alias-chip">{a}</span>)}</>;
-};
-const UsageCell = ({ value }: { value: number }) => {
-  const pct = Math.min(100, Math.round((value / 1900) * 100));
+const UsageCell = ({ value, max }: { value: number; max: number }) => {
+  const pct = Math.min(100, Math.round((value / Math.max(max, 1)) * 100));
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span className="t-mono t-meta" style={{ minWidth: 48 }}>{value.toLocaleString()}</span>
@@ -47,10 +23,39 @@ const StatusBadge = ({ on }: { on: boolean }) => <span className={`badge-status 
 
 type MergeState = "off" | "on";
 
+async function fetchAllMakers(): Promise<MakerRow[]> {
+  const out: MakerRow[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const chunk = await rest<MakerRow[]>("GET", "makers", {
+      params: { select: "code,name,description,is_active", order: "name.asc", limit: "1000", offset: String(offset) },
+    });
+    out.push(...chunk);
+    if (chunk.length < 1000) break;
+  }
+  return out;
+}
+
 export function MakerListPage() {
   const [search, setSearch] = useState("");
   const [mergeMode, setMergeMode] = useState<MergeState>("off");
   const [selected, setSelected] = useState<string[]>([]);
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["v2-makers"],
+    queryFn: async () => {
+      const [makers, usage] = await Promise.all([fetchAllMakers(), rpc<Record<string, number>>("get_maker_usage_counts")]);
+      return makers.map<Maker>((m) => ({
+        code: m.code, name: m.name, description: m.description ?? "",
+        is_active: m.is_active, usage: usage[m.name?.trim()] ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const maxUsage = useMemo(() => rows.reduce((m, r) => Math.max(m, r.usage), 0), [rows]);
+  const activeCnt = useMemo(() => rows.filter(r => r.is_active).length, [rows]);
+  const matchedCnt = useMemo(() => rows.filter(r => r.usage > 0).length, [rows]);
+  const matchedItems = useMemo(() => rows.reduce((s, r) => s + r.usage, 0), [rows]);
 
   const ActionsCell = ({ data }: { data: Maker }) => (
     mergeMode === "on"
@@ -68,13 +73,12 @@ export function MakerListPage() {
 
   const columnDefs = useMemo<ColDef<Maker>[]>(() => ([
     { headerName: "코드", field: "code", width: 130, cellRenderer: (p: ICellRendererParams<Maker>) => <CodeChip value={p.value} /> },
-    { headerName: "제조사명", field: "name", width: 160, cellStyle: { fontWeight: 600 } as any },
-    { headerName: "별칭 (aliases)", field: "aliases", width: 200, cellRenderer: (p: ICellRendererParams<Maker>) => <AliasCell aliases={p.value} />, filterValueGetter: (p) => (p.data?.aliases || []).join(", "), sortable: false },
-    { headerName: "사용 빈도 (items)", field: "usage", width: 200, cellRenderer: (p: ICellRendererParams<Maker>) => <UsageCell value={p.value} />, sort: "desc" },
+    { headerName: "제조사명", field: "name", width: 220, cellStyle: { fontWeight: 600 } as any },
+    { headerName: "사용 빈도 (items)", field: "usage", width: 220, cellRenderer: (p: ICellRendererParams<Maker>) => <UsageCell value={p.value} max={maxUsage} />, sort: "desc" },
     { headerName: "상태", field: "is_active", width: 80, cellRenderer: (p: ICellRendererParams<Maker>) => <StatusBadge on={p.value} />, filterValueGetter: (p) => p.data?.is_active ? "사용" : "미사용" },
-    { headerName: "설명", field: "description", width: 260, cellStyle: { color: "#64748b", fontSize: "13px" } as any },
+    { headerName: "설명", field: "description", width: 280, cellStyle: { color: "#64748b", fontSize: "13px" } as any },
     { headerName: mergeMode === "on" ? "선택" : "관리", width: 90, cellRenderer: (p: ICellRendererParams<Maker>) => <ActionsCell data={p.data!} />, sortable: false, filter: false, cellStyle: { display: "flex", alignItems: "center", justifyContent: "center" } as any },
-  ]), [mergeMode, selected]);
+  ]), [mergeMode, selected, maxUsage]);
 
   const onGridReady = useCallback((e: GridReadyEvent) => e.api.sizeColumnsToFit(), []);
 
@@ -85,7 +89,7 @@ export function MakerListPage() {
       <div className="page-h">
         <div>
           <h1>제조사 리스트<span className="text-xs text-gray-500 font-normal ml-2">/ maker-model</span></h1>
-          <div className="meta">1,743개 제조사 마스터 · items.maker 매칭 (free-text)</div>
+          <div className="meta">{rows.length.toLocaleString()}개 제조사 마스터 · items.maker 매칭 (free-text){isLoading && " · 불러오는 중…"}</div>
         </div>
         <div className="actions">
           {mergeMode === "off" ? (
@@ -104,10 +108,10 @@ export function MakerListPage() {
       </div>
 
       <div className="grid grid-cols-4 gap-3" style={{ marginTop: 16 }}>
-        <div className="stat-card"><div className="stat-label">전체 제조사</div><div className="stat-val">1,743</div><div className="stat-sub">사용 중 1,498 · 미사용 245</div></div>
-        <div className="stat-card"><div className="stat-label">items 매칭률</div><div className="stat-val">87%</div><div className="stat-sub">26,080 / 29,977</div></div>
-        <div className="stat-card"><div className="stat-label">별칭 등록</div><div className="stat-val">312</div><div className="stat-sub">한글/영문/약어 다국어</div></div>
-        <div className="stat-card"><div className="stat-label">중복 후보</div><div className="stat-val" style={{ color: "#b45309" }}>23</div><div className="stat-sub">병합 검토 필요</div></div>
+        <div className="stat-card"><div className="stat-label">전체 제조사</div><div className="stat-val">{rows.length.toLocaleString()}</div><div className="stat-sub">사용 중 {activeCnt.toLocaleString()} · 미사용 {(rows.length - activeCnt).toLocaleString()}</div></div>
+        <div className="stat-card"><div className="stat-label">items에서 사용 중</div><div className="stat-val">{matchedCnt.toLocaleString()}</div><div className="stat-sub">정확 일치 제조사 (free-text)</div></div>
+        <div className="stat-card"><div className="stat-label">매칭 items 합계</div><div className="stat-val">{matchedItems.toLocaleString()}</div><div className="stat-sub">maker 보유 활성 items</div></div>
+        <div className="stat-card"><div className="stat-label">미사용 마스터</div><div className="stat-val" style={{ color: "#b45309" }}>{(rows.length - matchedCnt).toLocaleString()}</div><div className="stat-sub">items 참조 0건 (정리 후보)</div></div>
       </div>
 
       {mergeMode === "on" && (
@@ -119,14 +123,14 @@ export function MakerListPage() {
       <div className="maker-toolbar">
         <div className="search-box">
           <svg className="ic-search" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="제조사명 · 코드 · 별칭 검색…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" placeholder="제조사명 · 코드 검색…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <span className="t-meta">전체 <strong className="t-navy">1,743개</strong> (목업 20행 표시)</span>
+        <span className="t-meta">전체 <strong className="t-navy">{rows.length.toLocaleString()}개</strong></span>
       </div>
 
       <div className="ag-theme-quartz" style={{ height: 540 }}>
         <AgGridReact<Maker>
-          rowData={MAKERS}
+          rowData={rows}
           columnDefs={columnDefs}
           rowHeight={48} headerHeight={36}
           suppressCellFocus suppressMenuHide

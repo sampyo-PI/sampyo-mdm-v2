@@ -63,6 +63,28 @@ export async function rest<T = unknown>(
   return (await r.json()) as T;
 }
 
+/** exact count 조회 native fetch wrapper — Content-Range 헤더 파싱 (head 요청) */
+export async function restCount(table: string, params: Record<string, string> = {}): Promise<number> {
+  const accessToken = readAccessTokenFromLocalStorage() ?? SUPABASE_PUBLISHABLE_KEY;
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
+  url.searchParams.set("select", "id");
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const r = await fetch(url.toString(), {
+    method: "HEAD",
+    headers: {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      Prefer: "count=exact",
+      "Range-Unit": "items",
+      Range: "0-0",
+    },
+  });
+  const cr = r.headers.get("content-range"); // e.g. "0-0/1234" or "*/1234"
+  if (!cr) return 0;
+  const total = cr.split("/")[1];
+  return total === "*" ? 0 : parseInt(total, 10) || 0;
+}
+
 /** RPC 호출 native fetch wrapper — supabase.rpc() hang 우회 */
 export async function rpc<T = unknown>(fnName: string, args?: Record<string, unknown>): Promise<T> {
   const accessToken = readAccessTokenFromLocalStorage() ?? SUPABASE_PUBLISHABLE_KEY;

@@ -1,70 +1,16 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { rest, restCount } from "../lib/supabase";
 
-type Cat = { code: string; name: string; en: string };
-type SmallCat = Cat & { stock_unit?: string; account?: string; klass?: string; fieldTerms?: string[] };
+type Cat = { id: string; code: string; name: string; en: string };
+type SmallCat = Cat & { stock_unit: string; account: string; klass: string };
 
-const LARGES: Cat[] = [
-  { code: "M", name: "기계부속", en: "Machine Parts" },
-  { code: "E", name: "전기부속", en: "Electrical Parts" },
-  { code: "S", name: "안전용품", en: "Safety Supplies" },
-  { code: "N", name: "건설자재", en: "Construction Materials" },
-  { code: "G", name: "일반자재", en: "General Supplies" },
-  { code: "I", name: "철강자재", en: "Steel Materials" },
-  { code: "L", name: "유지류", en: "Lubricants and Oils" },
-  { code: "W", name: "원부원료", en: "Raw Materials" },
-  { code: "F", name: "연료", en: "Fuel" },
-  { code: "D", name: "공기구", en: "Hand Tools" },
-  { code: "B", name: "강구", en: "Steel Balls" },
-  { code: "K", name: "포장적재자재", en: "Packaging" },
-  { code: "Q", name: "시험자재", en: "Test Materials" },
-  { code: "R", name: "연와", en: "Refractory Bricks" },
-  { code: "H", name: "화약류", en: "Explosives" },
-  { code: "X", name: "불용", en: "Obsolete Items" },
-];
-
-const MEDIUMS: Record<string, Cat[]> = {
-  M: [
-    { code: "EN", name: "엔진부속품", en: "Engine Parts" },
-    { code: "EM", name: "모터", en: "Motor" },
-    { code: "LB", name: "베어링", en: "Bearing" },
-    { code: "RD", name: "감속기", en: "Reducer" },
-    { code: "CV", name: "콘베이어", en: "Conveyor" },
-    { code: "CG", name: "기어드", en: "Gear" },
-    { code: "TR", name: "변속기", en: "Transmission" },
-    { code: "CL", name: "클러치", en: "Clutch" },
-  ],
-  E: [
-    { code: "BL", name: "전선", en: "Wire/Cable" },
-    { code: "PS", name: "전원공급장치", en: "Power Supply" },
-    { code: "PL", name: "PLC", en: "PLC" },
-  ],
-  S: [
-    { code: "PP", name: "개인보호구", en: "PPE" },
-    { code: "SG", name: "안전표지", en: "Safety Sign" },
-  ],
-};
-
-const SMALLS: Record<string, SmallCat[]> = {
-  EN: [
-    { code: "ENG", name: "엔진부속품", en: "Engine Parts", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["엔진부품", "모터부품", "엔진소모품"] },
-    { code: "CYL", name: "실린더·헤드", en: "Cylinder/Head", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["실린더헤드", "헤드"] },
-    { code: "CRK", name: "크랭크·캠", en: "Crank/Cam", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["크랭크", "캠샤프트"] },
-    { code: "PST", name: "피스톤·링", en: "Piston/Ring", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["피스톤", "Piston"] },
-    { code: "VLR", name: "밸브·로커", en: "Valve/Rocker", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["엔진밸브", "로커암"] },
-    { code: "EOF", name: "엔진오일·필터", en: "Oil/Filter", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["오일필터", "엔진필터"] },
-  ],
-  EM: [
-    { code: "MOT", name: "범용모터", en: "General Motor", stock_unit: "EA – 개", account: "33 – 저장품", klass: "02 – 기계", fieldTerms: ["범용모터", "전동기", "Motor"] },
-    { code: "SVM", name: "서보모터", en: "Servo Motor", stock_unit: "EA – 개", account: "33 – 저장품", klass: "02 – 기계", fieldTerms: ["서보모터", "Servo"] },
-  ],
-  LB: [
-    { code: "BER", name: "베어링", en: "Bearing", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["베어링", "볼베어링", "Bearing"] },
-    { code: "BSH", name: "부싱", en: "Bushing", stock_unit: "EA – 개", account: "33 – 저장품", klass: "01 – 일반자재", fieldTerms: ["부싱", "Bushing"] },
-  ],
-};
+type LargeRow = { id: string; code: string; name: string; english_name: string | null };
+type MediumRow = LargeRow & { large_category_id: string };
+type SmallRow = LargeRow & { medium_category_id: string; default_stock_unit_code: string | null; default_item_account_code: string | null; default_item_class_code: string | null };
 
 const Panel = ({ title, count, items, selected, onSelect, parentLabel, search, setSearch }: {
-  title: string; count: number; items: Cat[]; selected: string | null; onSelect: (code: string) => void;
+  title: string; count: number; items: Cat[]; selected: string | null; onSelect: (id: string) => void;
   parentLabel?: string; search: string; setSearch: (s: string) => void;
 }) => (
   <div className="cat-panel">
@@ -82,8 +28,8 @@ const Panel = ({ title, count, items, selected, onSelect, parentLabel, search, s
       {items.length === 0 ? (
         <div className="empty">{parentLabel ? `${parentLabel}에 등록된 ${title} 없음` : "검색 결과 없음"}</div>
       ) : (
-        items.filter(c => !search || c.name.includes(search) || c.code.toLowerCase().includes(search.toLowerCase()) || c.en.toLowerCase().includes(search.toLowerCase())).map(c => (
-          <div key={c.code} className={`cat-row ${selected === c.code ? "selected" : ""}`} onClick={() => onSelect(c.code)}>
+        items.filter(c => !search || c.name.includes(search) || c.code.toLowerCase().includes(search.toLowerCase()) || (c.en || "").toLowerCase().includes(search.toLowerCase())).map(c => (
+          <div key={c.id} className={`cat-row ${selected === c.id ? "selected" : ""}`} onClick={() => onSelect(c.id)}>
             <div className="cat-main">
               <div className="cat-name">{c.name}</div>
               <div className="cat-meta">
@@ -102,18 +48,64 @@ const Panel = ({ title, count, items, selected, onSelect, parentLabel, search, s
 );
 
 export function ClassificationTreePage() {
-  const [selL, setSelL] = useState<string | null>("M");
-  const [selM, setSelM] = useState<string | null>("EN");
-  const [selS, setSelS] = useState<string | null>("ENG");
+  const [selL, setSelL] = useState<string | null>(null);
+  const [selM, setSelM] = useState<string | null>(null);
+  const [selS, setSelS] = useState<string | null>(null);
   const [qL, setQL] = useState("");
   const [qM, setQM] = useState("");
   const [qS, setQS] = useState("");
 
-  const mediums = useMemo(() => selL ? (MEDIUMS[selL] || []) : [], [selL]);
-  const smalls = useMemo(() => selM ? (SMALLS[selM] || []) : [], [selM]);
-  const largeRow = useMemo(() => LARGES.find(x => x.code === selL), [selL]);
-  const medRow = useMemo(() => mediums.find(x => x.code === selM), [mediums, selM]);
-  const smallRow = useMemo(() => smalls.find(x => x.code === selS), [smalls, selS]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["v2-categories-tree"],
+    queryFn: async () => {
+      const [larges, mediums, smalls] = await Promise.all([
+        rest<LargeRow[]>("GET", "category_large", { params: { select: "id,code,name,english_name", order: "sort_order.asc", limit: "100" } }),
+        rest<MediumRow[]>("GET", "category_medium", { params: { select: "id,code,name,english_name,large_category_id", order: "sort_order.asc", limit: "500" } }),
+        rest<SmallRow[]>("GET", "category_small", { params: { select: "id,code,name,english_name,medium_category_id,default_stock_unit_code,default_item_account_code,default_item_class_code", order: "sort_order.asc", limit: "2000" } }),
+      ]);
+      return { larges, mediums, smalls };
+    },
+    staleTime: 300_000,
+  });
+
+  const larges = useMemo<Cat[]>(() => (data?.larges ?? []).map(l => ({ id: l.id, code: l.code, name: l.name, en: l.english_name ?? "" })), [data]);
+  const mediumsByLarge = useMemo(() => {
+    const m: Record<string, Cat[]> = {};
+    (data?.mediums ?? []).forEach(x => { (m[x.large_category_id] ??= []).push({ id: x.id, code: x.code, name: x.name, en: x.english_name ?? "" }); });
+    return m;
+  }, [data]);
+  const smallsByMedium = useMemo(() => {
+    const m: Record<string, SmallCat[]> = {};
+    (data?.smalls ?? []).forEach(x => {
+      (m[x.medium_category_id] ??= []).push({
+        id: x.id, code: x.code, name: x.name, en: x.english_name ?? "",
+        stock_unit: x.default_stock_unit_code ?? "—",
+        account: x.default_item_account_code ?? "—",
+        klass: x.default_item_class_code ?? "—",
+      });
+    });
+    return m;
+  }, [data]);
+
+  const mediums = useMemo(() => selL ? (mediumsByLarge[selL] || []) : [], [selL, mediumsByLarge]);
+  const smalls = useMemo(() => selM ? (smallsByMedium[selM] || []) : [], [selM, smallsByMedium]);
+  const largeRow = useMemo(() => larges.find(x => x.id === selL), [larges, selL]);
+  const medRow = useMemo(() => mediums.find(x => x.id === selM), [mediums, selM]);
+  const smallRow = useMemo(() => smalls.find(x => x.id === selS), [smalls, selS]);
+
+  const { data: fieldTerms = [] } = useQuery({
+    queryKey: ["v2-field-terms", selS],
+    enabled: !!selS,
+    queryFn: () => rest<{ term: string }[]>("GET", "category_field_terms", { params: { select: "term", small_category_id: `eq.${selS}`, is_active: "eq.true", order: "sort_order.asc" } }).then(r => r.map(x => x.term)),
+    staleTime: 120_000,
+  });
+
+  const { data: activeItemCount } = useQuery({
+    queryKey: ["v2-small-item-count", smallRow?.name],
+    enabled: !!smallRow,
+    queryFn: () => restCount("items", { small_category: `eq.${smallRow!.name}`, is_active: "eq.true" }),
+    staleTime: 120_000,
+  });
 
   const fullCode = smallRow ? `${largeRow?.code}·${medRow?.code}·${smallRow.code}` : null;
 
@@ -124,7 +116,7 @@ export function ClassificationTreePage() {
       <div className="page-h">
         <div>
           <h1>분류 체계<span className="text-xs text-gray-500 font-normal ml-2">/ classification/tree</span></h1>
-          <div className="meta">대 16 / 중 138 / 소 652 분류 — 좌→우 드릴다운 · admin 권한 시 편집/추가</div>
+          <div className="meta">대 {data?.larges.length ?? "—"} / 중 {data?.mediums.length ?? "—"} / 소 {data?.smalls.length ?? "—"} 분류 — 좌→우 드릴다운{isLoading && " · 불러오는 중…"}</div>
         </div>
         <div className="actions">
           <button className="btn-sec">📊 분류체계 다운로드</button>
@@ -132,7 +124,7 @@ export function ClassificationTreePage() {
       </div>
 
       <div className="cat-three">
-        <Panel title="대분류" count={16} items={LARGES} selected={selL} onSelect={(c) => { setSelL(c); setSelM(null); setSelS(null); }} search={qL} setSearch={setQL} />
+        <Panel title="대분류" count={larges.length} items={larges} selected={selL} onSelect={(c) => { setSelL(c); setSelM(null); setSelS(null); }} search={qL} setSearch={setQL} />
         <Panel title="중분류" count={mediums.length} items={mediums} selected={selM} onSelect={(c) => { setSelM(c); setSelS(null); }} parentLabel={largeRow?.name} search={qM} setSearch={setQM} />
         <Panel title="소분류" count={smalls.length} items={smalls} selected={selS} onSelect={setSelS} parentLabel={medRow?.name} search={qS} setSearch={setQS} />
       </div>
@@ -145,7 +137,7 @@ export function ClassificationTreePage() {
               <div className="title">{smallRow.name} — 상세</div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button className="btn-sec" style={{ fontSize: 12 }}>✏ 편집</button>
-                <button className="btn-sec" style={{ fontSize: 12 }}>📋 활성 items (29)</button>
+                <button className="btn-sec" style={{ fontSize: 12 }}>📋 활성 items ({activeItemCount ?? "…"})</button>
               </div>
             </div>
             <div className="d-grid">
@@ -161,7 +153,7 @@ export function ClassificationTreePage() {
               <div className="title">
                 현장용어
                 <span style={{ fontWeight: 400, color: "#64748b", fontSize: 13, marginLeft: 6 }}>
-                  ({(smallRow.fieldTerms || []).length}건)
+                  ({fieldTerms.length}건)
                 </span>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
@@ -169,9 +161,9 @@ export function ClassificationTreePage() {
                 <button className="btn-sec" style={{ fontSize: 12, color: "#dc2626", borderColor: "#fca5a5" }}>🗑 삭제</button>
               </div>
             </div>
-            {(smallRow.fieldTerms || []).length > 0 ? (
+            {fieldTerms.length > 0 ? (
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {smallRow.fieldTerms!.map((t, i) => <span key={i} className="term-chip">{t}</span>)}
+                {fieldTerms.map((t, i) => <span key={i} className="term-chip">{t}</span>)}
               </div>
             ) : (
               <div className="hint">등록된 현장용어가 없습니다</div>

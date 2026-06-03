@@ -1,33 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, type ColDef, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
+import { rest, rpc } from "../lib/supabase";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-type Unit = { code: string; name: string; description: string; unit_type: "stock" | "purchase" | "both"; usage: number; is_active: boolean };
-
-const UNITS: Unit[] = [
-  { code: "EA", name: "개", description: "낱개 단위 (가장 보편)", unit_type: "both", usage: 18432, is_active: true },
-  { code: "SET", name: "세트", description: "조립 부품 묶음", unit_type: "both", usage: 2841, is_active: true },
-  { code: "KG", name: "킬로그램", description: "중량 단위", unit_type: "both", usage: 2103, is_active: true },
-  { code: "M", name: "미터", description: "길이 (전선·파이프)", unit_type: "both", usage: 1842, is_active: true },
-  { code: "L", name: "리터", description: "액체 부피", unit_type: "both", usage: 987, is_active: true },
-  { code: "BOX", name: "박스", description: "박스 단위 (PACK)", unit_type: "purchase", usage: 654, is_active: true },
-  { code: "ROLL", name: "롤", description: "권취 (테이프·필름)", unit_type: "both", usage: 521, is_active: true },
-  { code: "M2", name: "제곱미터", description: "면적", unit_type: "both", usage: 387, is_active: true },
-  { code: "M3", name: "세제곱미터", description: "체적", unit_type: "both", usage: 312, is_active: true },
-  { code: "PR", name: "쌍", description: "장갑·신발 등", unit_type: "both", usage: 298, is_active: true },
-  { code: "TON", name: "톤", description: "1000 kg", unit_type: "both", usage: 234, is_active: true },
-  { code: "PCK", name: "팩", description: "포장 단위", unit_type: "purchase", usage: 189, is_active: true },
-  { code: "BAG", name: "백", description: "포대", unit_type: "both", usage: 142, is_active: true },
-  { code: "DR", name: "드럼", description: "드럼통 (보통 200L)", unit_type: "both", usage: 121, is_active: true },
-  { code: "CAN", name: "캔", description: "캔 단위 (페인트 등)", unit_type: "both", usage: 98, is_active: true },
-  { code: "G", name: "그램", description: "1/1000 kg", unit_type: "both", usage: 67, is_active: true },
-  { code: "MM", name: "밀리미터", description: "1/1000 m", unit_type: "both", usage: 54, is_active: true },
-  { code: "CM", name: "센티미터", description: "1/100 m", unit_type: "both", usage: 32, is_active: true },
-  { code: "BL", name: "벌", description: "의류 (작업복 등)", unit_type: "both", usage: 18, is_active: false },
-  { code: "DOZ", name: "다스", description: "12개", unit_type: "both", usage: 5, is_active: false },
-];
+type UnitRow = { code: string; name: string; description: string | null; unit_type: string; is_active: boolean };
+type Unit = { code: string; name: string; description: string; unit_type: string; usage: number; is_active: boolean };
 
 const TypeBadge = ({ value }: { value: string }) => {
   const map: Record<string, { label: string; cls: string }> = {
@@ -36,8 +16,8 @@ const TypeBadge = ({ value }: { value: string }) => {
   const m = map[value] ?? map.both;
   return <span className={`badge-type ${m.cls}`}>{m.label}</span>;
 };
-const UsageCell = ({ value }: { value: number }) => {
-  const pct = Math.min(100, Math.round((value / 18500) * 100));
+const UsageCell = ({ value, max }: { value: number; max: number }) => {
+  const pct = Math.min(100, Math.round((value / Math.max(max, 1)) * 100));
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span className="t-mono t-meta" style={{ minWidth: 50 }}>{value.toLocaleString()}</span>
@@ -57,15 +37,35 @@ const ActionsCell = () => (
 export function UnitListPage() {
   const [search, setSearch] = useState("");
 
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["v2-units"],
+    queryFn: async () => {
+      const [units, usage] = await Promise.all([
+        rest<UnitRow[]>("GET", "units", { params: { select: "code,name,description,unit_type,is_active", order: "sort_order.asc", limit: "500" } }),
+        rpc<Record<string, number>>("get_unit_usage_counts"),
+      ]);
+      return units.map<Unit>((u) => ({
+        code: u.code, name: u.name, description: u.description ?? "",
+        unit_type: u.unit_type, is_active: u.is_active, usage: usage[u.code] ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const maxUsage = useMemo(() => rows.reduce((m, r) => Math.max(m, r.usage), 0), [rows]);
+  const totalItemUsage = useMemo(() => rows.reduce((s, r) => s + r.usage, 0), [rows]);
+  const topUnit = useMemo(() => [...rows].sort((a, b) => b.usage - a.usage)[0], [rows]);
+  const activeCnt = useMemo(() => rows.filter(r => r.is_active).length, [rows]);
+
   const columnDefs = useMemo<ColDef<Unit>[]>(() => ([
     { headerName: "코드", field: "code", width: 90, cellRenderer: (p: ICellRendererParams<Unit>) => <CodeChip value={p.value} /> },
     { headerName: "단위명", field: "name", width: 130, cellStyle: { fontWeight: 600 } as any },
     { headerName: "타입", field: "unit_type", width: 90, cellRenderer: (p: ICellRendererParams<Unit>) => <TypeBadge value={p.value} /> },
-    { headerName: "사용 빈도 (items)", field: "usage", width: 200, cellRenderer: (p: ICellRendererParams<Unit>) => <UsageCell value={p.value} />, sort: "desc" },
+    { headerName: "사용 빈도 (items)", field: "usage", width: 200, cellRenderer: (p: ICellRendererParams<Unit>) => <UsageCell value={p.value} max={maxUsage} />, sort: "desc" },
     { headerName: "상태", field: "is_active", width: 80, cellRenderer: (p: ICellRendererParams<Unit>) => <StatusBadge on={p.value} />, filterValueGetter: (p) => p.data?.is_active ? "사용" : "미사용" },
     { headerName: "설명", field: "description", width: 280, cellStyle: { color: "#64748b", fontSize: "13px" } as any },
     { headerName: "관리", width: 90, cellRenderer: () => <ActionsCell />, sortable: false, filter: false, cellStyle: { display: "flex", alignItems: "center", justifyContent: "center" } as any },
-  ]), []);
+  ]), [maxUsage]);
 
   const onGridReady = useCallback((e: GridReadyEvent) => e.api.sizeColumnsToFit(), []);
 
@@ -76,7 +76,7 @@ export function UnitListPage() {
       <div className="page-h">
         <div>
           <h1>단위 관리<span className="text-xs text-gray-500 font-normal ml-2">/ unit</span></h1>
-          <div className="meta">91개 단위 마스터 · ERP 재고단위는 별도 마스터 (법인별 14×976행)</div>
+          <div className="meta">{rows.length}개 단위 마스터 · ERP 재고단위는 별도 마스터 (법인별 14×976행){isLoading && " · 불러오는 중…"}</div>
         </div>
         <div className="actions">
           <button className="btn-primary">＋ 단위 추가</button>
@@ -86,13 +86,13 @@ export function UnitListPage() {
       <div className="grid grid-cols-3 gap-3" style={{ marginTop: 16 }}>
         <div className="stat-card">
           <div className="stat-label">단위 마스터</div>
-          <div className="stat-val">91</div>
-          <div className="stat-sub">사용 중 87 · 미사용 4</div>
+          <div className="stat-val">{rows.length}</div>
+          <div className="stat-sub">사용 중 {activeCnt} · 미사용 {rows.length - activeCnt}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">items 사용 (재고단위)</div>
-          <div className="stat-val">29,977</div>
-          <div className="stat-sub">EA 18,432 (62%) · SET 2,841</div>
+          <div className="stat-val">{totalItemUsage.toLocaleString()}</div>
+          <div className="stat-sub">{topUnit ? `${topUnit.code} ${topUnit.usage.toLocaleString()} 최다` : "—"}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">ERP 재고단위명 (별도)</div>
@@ -110,12 +110,12 @@ export function UnitListPage() {
           <svg className="ic-search" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="text" placeholder="단위명 · 코드 검색…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <span className="t-meta">전체 <strong className="t-navy">91개</strong> (목업 20행 표시)</span>
+        <span className="t-meta">전체 <strong className="t-navy">{rows.length}개</strong></span>
       </div>
 
       <div className="ag-theme-quartz" style={{ height: 540 }}>
         <AgGridReact<Unit>
-          rowData={UNITS}
+          rowData={rows}
           columnDefs={columnDefs}
           rowHeight={46} headerHeight={36}
           suppressCellFocus suppressMenuHide

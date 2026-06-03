@@ -1,44 +1,44 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { rest } from "../lib/supabase";
 
-type Cat = { code: string; name: string };
+type Cat = { id: string; code: string; name: string };
 type AttrMap = { code: string; name: string; sort_order: number; include_in_name: boolean; unit: string | null };
 
-const LARGES: Cat[] = [
-  { code: "M", name: "일반자재" }, { code: "E", name: "엔진/구동" }, { code: "K", name: "기계요소" },
-  { code: "P", name: "배관·밸브" }, { code: "L", name: "전기·계장" }, { code: "S", name: "측정·계측" },
-];
-const MEDS: Record<string, Cat[]> = {
-  E: [{ code: "EN", name: "엔진부속품" }, { code: "EM", name: "모터" }, { code: "RD", name: "감속기" }],
-  M: [{ code: "LN", name: "라인" }, { code: "LB", name: "베어링" }, { code: "LM", name: "모터" }],
-  K: [{ code: "CV", name: "콘베이어" }, { code: "CG", name: "기어드" }, { code: "SL", name: "실린더" }],
-};
-const SMALLS: Record<string, Cat[]> = {
-  EN: [{ code: "PSN", name: "피스톤" }, { code: "CYL", name: "실린더헤드" }, { code: "BLK", name: "엔진블록" }, { code: "FLT", name: "엔진오일필터" }],
-  EM: [{ code: "MOT", name: "범용모터" }, { code: "SVM", name: "서보모터" }],
-  LB: [{ code: "BER", name: "베어링" }, { code: "BSH", name: "부싱" }],
-  LM: [{ code: "MOT", name: "송풍기모터" }],
-};
-
-const MAPPING: Record<string, AttrMap[]> = {
-  MOT: [
-    { code: "OUTPUT-KW", name: "출력", sort_order: 1, include_in_name: true, unit: "kW" },
-    { code: "VOLT-V", name: "전압", sort_order: 2, include_in_name: true, unit: "V" },
-    { code: "RPM", name: "회전수", sort_order: 3, include_in_name: false, unit: "rpm" },
-    { code: "POLE", name: "극수", sort_order: 4, include_in_name: false, unit: null },
-    { code: "MAT", name: "재질", sort_order: 5, include_in_name: false, unit: null },
-  ],
-  BER: [
-    { code: "BORE-MM", name: "내경", sort_order: 1, include_in_name: true, unit: "mm" },
-    { code: "OUTER-MM", name: "외경", sort_order: 2, include_in_name: true, unit: "mm" },
-    { code: "THICK-MM", name: "두께", sort_order: 3, include_in_name: false, unit: "mm" },
-    { code: "SEAL-TYPE", name: "씰 형식", sort_order: 4, include_in_name: false, unit: null },
-  ],
-};
+type LargeRow = { id: string; code: string; name: string };
+type MediumRow = LargeRow & { large_category_id: string };
+type SmallRow = LargeRow & { medium_category_id: string };
+type MappingRow = { sort_order: number; include_in_name: boolean; attributes: { code: string; name: string; unit: string | null } | null };
 
 export function ClassificationMappingPage() {
-  const [expL, setExpL] = useState<Set<string>>(new Set(["E", "M"]));
-  const [expM, setExpM] = useState<Set<string>>(new Set(["EN", "LB"]));
-  const [selSmall, setSelSmall] = useState<{ code: string; name: string; path: string } | null>({ code: "MOT", name: "범용모터", path: "엔진/구동 ▸ 모터 ▸ 범용모터" });
+  const [expL, setExpL] = useState<Set<string>>(new Set());
+  const [expM, setExpM] = useState<Set<string>>(new Set());
+  const [selSmall, setSelSmall] = useState<{ id: string; code: string; name: string; path: string } | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["v2-categories-mapping"],
+    queryFn: async () => {
+      const [larges, mediums, smalls] = await Promise.all([
+        rest<LargeRow[]>("GET", "category_large", { params: { select: "id,code,name", order: "sort_order.asc", limit: "100" } }),
+        rest<MediumRow[]>("GET", "category_medium", { params: { select: "id,code,name,large_category_id", order: "sort_order.asc", limit: "500" } }),
+        rest<SmallRow[]>("GET", "category_small", { params: { select: "id,code,name,medium_category_id", order: "sort_order.asc", limit: "2000" } }),
+      ]);
+      return { larges, mediums, smalls };
+    },
+    staleTime: 300_000,
+  });
+
+  const larges = useMemo<Cat[]>(() => data?.larges ?? [], [data]);
+  const medsByLarge = useMemo(() => {
+    const m: Record<string, Cat[]> = {};
+    (data?.mediums ?? []).forEach(x => { (m[x.large_category_id] ??= []).push(x); });
+    return m;
+  }, [data]);
+  const smallsByMed = useMemo(() => {
+    const m: Record<string, Cat[]> = {};
+    (data?.smalls ?? []).forEach(x => { (m[x.medium_category_id] ??= []).push(x); });
+    return m;
+  }, [data]);
 
   const toggleL = (c: string) => {
     const n = new Set(expL); n.has(c) ? n.delete(c) : n.add(c); setExpL(n);
@@ -47,7 +47,17 @@ export function ClassificationMappingPage() {
     const n = new Set(expM); n.has(c) ? n.delete(c) : n.add(c); setExpM(n);
   };
 
-  const mapping = useMemo(() => selSmall ? (MAPPING[selSmall.code] || []) : [], [selSmall]);
+  const { data: mapping = [] } = useQuery({
+    queryKey: ["v2-cat-attr-mapping", selSmall?.id],
+    enabled: !!selSmall,
+    queryFn: () => rest<MappingRow[]>("GET", "category_attribute_mappings", {
+      params: { select: "sort_order,include_in_name,attributes(code,name,unit)", small_category_id: `eq.${selSmall!.id}`, order: "sort_order.asc" },
+    }).then(rows => rows.filter(r => r.attributes).map<AttrMap>(r => ({
+      code: r.attributes!.code, name: r.attributes!.name, unit: r.attributes!.unit,
+      sort_order: r.sort_order, include_in_name: r.include_in_name,
+    }))),
+    staleTime: 120_000,
+  });
 
   return (
     <section className="page-card" style={{ marginBottom: 0 }}>
@@ -64,30 +74,27 @@ export function ClassificationMappingPage() {
         <div className="map-card tree-card">
           <div className="card-h">
             <div className="title">분류 체계</div>
-            <span className="t-meta">대 16 / 중 138 / 소 652</span>
-          </div>
-          <div className="search-box">
-            <input type="search" placeholder="소분류 검색…" />
+            <span className="t-meta">대 {data?.larges.length ?? "—"} / 중 {data?.mediums.length ?? "—"} / 소 {data?.smalls.length ?? "—"}{isLoading && " · 로딩…"}</span>
           </div>
           <div className="tree-list">
-            {LARGES.map(L => (
-              <div key={L.code}>
-                <div className="tree-node lvl-1" onClick={() => toggleL(L.code)}>
-                  <span className="caret">{expL.has(L.code) ? "▼" : "▶"}</span>
+            {larges.map(L => (
+              <div key={L.id}>
+                <div className="tree-node lvl-1" onClick={() => toggleL(L.id)}>
+                  <span className="caret">{expL.has(L.id) ? "▼" : "▶"}</span>
                   <span className="t-code">{L.code}</span>
                   <span className="t-name">{L.name}</span>
                 </div>
-                {expL.has(L.code) && (MEDS[L.code] || []).map(M => (
-                  <div key={M.code}>
-                    <div className="tree-node lvl-2" onClick={() => toggleM(M.code)}>
-                      <span className="caret">{expM.has(M.code) ? "▼" : "▶"}</span>
+                {expL.has(L.id) && (medsByLarge[L.id] || []).map(M => (
+                  <div key={M.id}>
+                    <div className="tree-node lvl-2" onClick={() => toggleM(M.id)}>
+                      <span className="caret">{expM.has(M.id) ? "▼" : "▶"}</span>
                       <span className="t-code">{M.code}</span>
                       <span className="t-name">{M.name}</span>
                     </div>
-                    {expM.has(M.code) && (SMALLS[M.code] || []).map(S => (
-                      <div key={S.code}
-                        className={`tree-node lvl-3 ${selSmall?.code === S.code ? "selected" : ""}`}
-                        onClick={() => setSelSmall({ code: S.code, name: S.name, path: `${L.name} ▸ ${M.name} ▸ ${S.name}` })}>
+                    {expM.has(M.id) && (smallsByMed[M.id] || []).map(S => (
+                      <div key={S.id}
+                        className={`tree-node lvl-3 ${selSmall?.id === S.id ? "selected" : ""}`}
+                        onClick={() => setSelSmall({ id: S.id, code: S.code, name: S.name, path: `${L.name} ▸ ${M.name} ▸ ${S.name}` })}>
                         <span className="caret"></span>
                         <span className="t-code">{S.code}</span>
                         <span className="t-name">{S.name}</span>

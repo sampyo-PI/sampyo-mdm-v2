@@ -1,40 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, type ColDef, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
+import { rest, rpc } from "../lib/supabase";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-type Attr = { code: string; name: string; data_type: "text" | "number" | "select" | "boolean"; unit: string | null; usage: number; is_active: boolean; description: string };
-
-const ATTRS: Attr[] = [
-  { code: "CHN-DETAIL", name: "세부유형", data_type: "text", unit: null, usage: 832, is_active: true, description: "소분류 내 세부 형식 구분" },
-  { code: "OUTPUT-KW", name: "출력", data_type: "number", unit: "kW", usage: 521, is_active: true, description: "모터·펌프 출력 (kW)" },
-  { code: "VOLT-V", name: "전압", data_type: "number", unit: "V", usage: 487, is_active: true, description: "전기 장치 전압 (V)" },
-  { code: "MAT", name: "재질", data_type: "select", unit: null, usage: 412, is_active: true, description: "SUS304/STS/CS 등 13개 옵션" },
-  { code: "SIZE-MM", name: "치수", data_type: "number", unit: "mm", usage: 389, is_active: true, description: "기본 치수 (mm)" },
-  { code: "BORE-MM", name: "내경", data_type: "number", unit: "mm", usage: 312, is_active: true, description: "베어링·파이프 내경" },
-  { code: "OUTER-MM", name: "외경", data_type: "number", unit: "mm", usage: 298, is_active: true, description: "베어링·파이프 외경" },
-  { code: "THICK-MM", name: "두께", data_type: "number", unit: "mm", usage: 246, is_active: true, description: "판재·튜브 두께" },
-  { code: "LENGTH-MM", name: "길이", data_type: "number", unit: "mm", usage: 234, is_active: true, description: "전선·파이프 길이" },
-  { code: "WIDTH-MM", name: "폭", data_type: "number", unit: "mm", usage: 189, is_active: true, description: "벨트·시트 폭" },
-  { code: "CAPACITY-L", name: "용량", data_type: "number", unit: "L", usage: 156, is_active: true, description: "탱크·드럼 용량 (L)" },
-  { code: "WEIGHT-KG", name: "중량", data_type: "number", unit: "kg", usage: 142, is_active: true, description: "단품 중량 (kg)" },
-  { code: "STANDARD", name: "규격번호", data_type: "text", unit: null, usage: 128, is_active: true, description: "ISO/JIS/KS 규격 번호" },
-  { code: "GRADE", name: "등급", data_type: "select", unit: null, usage: 121, is_active: true, description: "AAA/AA/A 등급" },
-  { code: "COLOR", name: "색상", data_type: "select", unit: null, usage: 98, is_active: true, description: "안전·표지용 색상" },
-  { code: "PRESSURE-BAR", name: "압력", data_type: "number", unit: "bar", usage: 87, is_active: true, description: "유압·공압 압력" },
-  { code: "TEMP-RANGE", name: "사용온도", data_type: "text", unit: null, usage: 72, is_active: true, description: "사용 가능 온도 범위" },
-  { code: "RPM", name: "회전수", data_type: "number", unit: "rpm", usage: 64, is_active: true, description: "모터·펌프 회전수" },
-  { code: "SEAL-TYPE", name: "씰 형식", data_type: "select", unit: null, usage: 38, is_active: false, description: "베어링 씰 타입" },
-  { code: "FILTER-CLASS", name: "필터 등급", data_type: "select", unit: null, usage: 21, is_active: false, description: "공기필터 H13/H14 등" },
-];
+type AttrRow = { id: string; code: string; name: string; data_type: string; unit: string | null; is_active: boolean; description: string | null };
+type Attr = { code: string; name: string; data_type: string; unit: string | null; usage: number; is_active: boolean; description: string };
 
 const TypeBadge = ({ value }: { value: string }) => {
   const labels: Record<string, string> = { text: "텍스트", number: "숫자", select: "선택", boolean: "T/F" };
   return <span className={`badge-type ${value}`}>{labels[value] ?? value}</span>;
 };
-const UsageCell = ({ value }: { value: number }) => {
-  const pct = Math.min(100, Math.round((value / 900) * 100));
+const UsageCell = ({ value, max }: { value: number; max: number }) => {
+  const pct = Math.min(100, Math.round((value / Math.max(max, 1)) * 100));
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span className="t-mono t-meta" style={{ minWidth: 36 }}>{value}</span>
@@ -59,29 +39,47 @@ export function AttributeListPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
 
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["v2-attributes"],
+    queryFn: async () => {
+      const [attrs, usage] = await Promise.all([
+        rest<AttrRow[]>("GET", "attributes", { params: { select: "id,code,name,data_type,unit,is_active,description", order: "name.asc", limit: "2000" } }),
+        rpc<Record<string, number>>("get_attribute_usage_counts"),
+      ]);
+      return attrs.map<Attr>((a) => ({
+        code: a.code, name: a.name, data_type: a.data_type, unit: a.unit,
+        is_active: a.is_active, description: a.description ?? "",
+        usage: usage[a.id] ?? 0,
+      }));
+    },
+    staleTime: 60_000,
+  });
+
+  const maxUsage = useMemo(() => rows.reduce((m, r) => Math.max(m, r.usage), 0), [rows]);
+
   const columnDefs = useMemo<ColDef<Attr>[]>(() => ([
     { headerName: "속성 코드", field: "code", width: 130, cellRenderer: (p: ICellRendererParams<Attr>) => <CodeChip value={p.value} /> },
     { headerName: "속성명", field: "name", width: 150, cellStyle: { fontWeight: 600 } as any },
     { headerName: "데이터 타입", field: "data_type", width: 110, cellRenderer: (p: ICellRendererParams<Attr>) => <TypeBadge value={p.value} /> },
     { headerName: "단위", field: "unit", width: 80, cellClass: "t-mono", valueFormatter: (p) => p.value || "—" },
-    { headerName: "사용 빈도", field: "usage", width: 180, cellRenderer: (p: ICellRendererParams<Attr>) => <UsageCell value={p.value} />, sort: "desc" },
+    { headerName: "사용 빈도 (매핑 소분류)", field: "usage", width: 200, cellRenderer: (p: ICellRendererParams<Attr>) => <UsageCell value={p.value} max={maxUsage} />, sort: "desc" },
     { headerName: "상태", field: "is_active", width: 80, cellRenderer: (p: ICellRendererParams<Attr>) => <StatusBadge on={p.value} />, filterValueGetter: (p) => p.data?.is_active ? "사용" : "미사용" },
     { headerName: "설명", field: "description", width: 300, cellStyle: { color: "#64748b", fontSize: "13px" } as any },
     { headerName: "관리", width: 90, cellRenderer: () => <ActionsCell />, sortable: false, filter: false, cellStyle: { display: "flex", alignItems: "center", justifyContent: "center" } as any },
-  ]), []);
+  ]), [maxUsage]);
 
   const onGridReady = useCallback((e: GridReadyEvent) => { e.api.sizeColumnsToFit(); }, []);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return ATTRS;
-    return ATTRS.filter(a => filter === "active" ? a.is_active : !a.is_active);
-  }, [filter]);
+    if (filter === "all") return rows;
+    return rows.filter(a => filter === "active" ? a.is_active : !a.is_active);
+  }, [filter, rows]);
 
   const counts = useMemo(() => ({
-    all: 951,  // 실 마스터 카운트 (mockup 더미는 20)
-    active: 872,
-    inactive: 79,
-  }), []);
+    all: rows.length,
+    active: rows.filter(r => r.is_active).length,
+    inactive: rows.filter(r => !r.is_active).length,
+  }), [rows]);
 
   return (
     <section className="page-card" style={{ marginBottom: 0 }}>
@@ -90,7 +88,7 @@ export function AttributeListPage() {
       <div className="page-h">
         <div>
           <h1>속성 목록<span className="text-xs text-gray-500 font-normal ml-2">/ attribute/list</span></h1>
-          <div className="meta">{counts.all}개 속성 마스터 — 카탈로그 분류별 매핑에 사용</div>
+          <div className="meta">{counts.all}개 속성 마스터 — 카탈로그 분류별 매핑에 사용{isLoading && " · 불러오는 중…"}</div>
         </div>
         <div className="actions">
           <button className="btn-primary">＋ 속성 추가</button>
@@ -108,7 +106,7 @@ export function AttributeListPage() {
           <button className={`filter-tag ${filter === "inactive" ? "on" : ""}`} onClick={() => setFilter("inactive")}>미사용 {counts.inactive}</button>
         </div>
         <span style={{ flex: 1 }}></span>
-        <span className="t-meta">총 <strong className="t-navy">{counts.all}건</strong> (목업 20행 표시)</span>
+        <span className="t-meta">총 <strong className="t-navy">{counts.all}건</strong></span>
       </div>
 
       <div className="ag-theme-quartz" style={{ height: 560 }}>
