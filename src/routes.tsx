@@ -105,7 +105,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "master",
     children: [
       { label: "품목 카탈로그", path: "/catalog" },
-      { label: "데이터 업로드", path: "/catalog/upload" },
+      { label: "데이터 업로드", path: "/catalog/upload", adminOnly: true },
     ],
   },
   {
@@ -144,12 +144,13 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
   {
     label: "시스템관리",
     icon: "settings",
+    adminOnly: true,
     children: [
-      { label: "사용자관리", path: "/admin/users" },
-      { label: "검토자 설정", path: "/admin/reviewers" },
-      { label: "조직관리", path: "/admin/organization" },
-      { label: "배포ERP관리", path: "/admin/erp" },
-      { label: "ERP배포현황", path: "/distribution" },
+      { label: "사용자관리", path: "/admin/users", adminOnly: true },
+      { label: "검토자 설정", path: "/admin/reviewers", adminOnly: true },
+      { label: "조직관리", path: "/admin/organization", adminOnly: true },
+      { label: "배포ERP관리", path: "/admin/erp", adminOnly: true },
+      { label: "ERP배포현황", path: "/distribution", adminOnly: true },
     ],
   },
   {
