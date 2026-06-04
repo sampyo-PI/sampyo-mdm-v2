@@ -130,7 +130,7 @@ export function QAListPage() {
             ) : (
               filtered.map((q) => (
                 <Link key={q.id} to={`/qna/thread/${q.id}`} className="qa-card" style={{ textDecoration: "none", color: "inherit", gridTemplateColumns: "84px 1fr 170px" }}>
-                  <div className="qa-stat" style={{ textAlign: "center", fontSize: "var(--app-fs-sm)", color: "var(--c-text-sub)", lineHeight: 1.4 }}>
+                  <div className="qa-stat" style={{ textAlign: "center", fontSize: "var(--app-fs-md)", color: "var(--c-text-sub)", lineHeight: 1.4 }}>
                     {fmtDate(q.created_at)}
                   </div>
                   <div className="qa-main">
@@ -142,8 +142,8 @@ export function QAListPage() {
                       {q.status === "OPEN" ? <span className="badge b-warn">미해결</span> : <span className="badge b-approve">종료</span>}
                     </div>
                   </div>
-                  <div className="qa-author" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    <span style={{ color: "var(--c-accent-500)", fontWeight: 600 }}>{q.authorName}</span>{q.authorDept ? ` · ${q.authorDept}` : ""}
+                  <div className="qa-author" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: "var(--app-fs-md)" }}>
+                    <span style={{ color: "var(--c-accent-500)", fontWeight: 600, fontSize: "var(--app-fs-md)" }}>{q.authorName}</span>{q.authorDept ? ` · ${q.authorDept}` : ""}
                   </div>
                 </Link>
               ))
