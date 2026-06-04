@@ -5,6 +5,7 @@ import { LoginPage } from "./pages/LoginPage";
 import type { SidebarItem } from "./components/layout/Sidebar";
 
 // AG-Grid가 들어간 페이지들은 별도 청크로 → 첫 페이지가 비-그리드일 때 1.1MB 절약
+const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const ListPage = lazy(() => import("./pages/ListPage").then((m) => ({ default: m.ListPage })));
 const CatalogPage = lazy(() => import("./pages/CatalogPage").then((m) => ({ default: m.CatalogPage })));
 const RequestsPage = lazy(() => import("./pages/RequestsPage").then((m) => ({ default: m.RequestsPage })));
@@ -39,7 +40,8 @@ function withSuspense(node: React.ReactNode) {
 
 export const routes: RouteObject[] = [
   // 진입
-  { path: "/", element: withSuspense(<CatalogPage />) },
+  { path: "/", element: withSuspense(<DashboardPage />) },
+  { path: "/dashboard", element: withSuspense(<DashboardPage />) },
 
   // 품목등록 그룹
   { path: "/request", element: withSuspense(<ItemRequestPage />) },
@@ -92,6 +94,11 @@ export const routes: RouteObject[] = [
 
 // v1 menuItems와 동일 구조: 확장형 그룹 + children + adminOnly + highlight
 export const SIDEBAR_ITEMS: SidebarItem[] = [
+  {
+    label: "대시보드",
+    icon: "dashboard",
+    path: "/",
+  },
   {
     label: "품목등록",
     icon: "request",
