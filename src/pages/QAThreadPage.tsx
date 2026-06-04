@@ -1,203 +1,211 @@
-import { useParams, Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { rest } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
+import { QnaPostDialog, type QnaCategory } from "../components/QnaPostDialog";
+
+type PostRow = {
+  id: string;
+  author_user_id: string;
+  category: QnaCategory;
+  status: "OPEN" | "CLOSED";
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+type CommentRow = { id: string; post_id: string; author_user_id: string; body: string; created_at: string };
+
+const CATEGORY_LABEL: Record<QnaCategory, string> = { bug: "버그", improvement: "개선요청", question: "질문", other: "기타" };
+const fmt = (s: string) => new Date(s).toLocaleString("ko-KR");
 
 export function QAThreadPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
+  const qc = useQueryClient();
+
+  const [commentBody, setCommentBody] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["qna-post", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const [postRows, comments] = await Promise.all([
+        rest<PostRow[]>("GET", "qna_posts", { params: { select: "*", id: `eq.${id}`, limit: "1" } }),
+        rest<CommentRow[]>("GET", "qna_comments", { params: { select: "*", post_id: `eq.${id}`, order: "created_at.asc" } }),
+      ]);
+      const post = postRows[0] ?? null;
+      if (!post) return { post: null, comments: [], names: new Map<string, { name: string; dept: string }>() };
+      const userIds = Array.from(new Set([post.author_user_id, ...comments.map((c) => c.author_user_id)])).filter(Boolean);
+      const profiles = userIds.length
+        ? await rest<Array<{ user_id: string; display_name: string | null; department: string | null }>>("GET", "profiles", {
+            params: { select: "user_id,display_name,department", user_id: `in.(${userIds.join(",")})` },
+          })
+        : [];
+      const names = new Map(profiles.map((p) => [p.user_id, { name: p.display_name || "(알 수 없음)", dept: p.department || "" }]));
+      return { post, comments, names };
+    },
+    staleTime: 20_000,
+  });
+
+  const post = data?.post ?? null;
+  const comments = data?.comments ?? [];
+  const names = data?.names ?? new Map();
+
+  const isAuthor = !!user && !!post && user.id === post.author_user_id;
+  const canManage = isAuthor || isAdmin;
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["qna-post", id] });
+    qc.invalidateQueries({ queryKey: ["qna-posts"] });
+  };
+
+  const addComment = useMutation({
+    mutationFn: async () => {
+      const b = commentBody.trim();
+      if (!user) throw new Error("로그인이 필요합니다");
+      if (b.length < 1) throw new Error("댓글을 입력해주세요");
+      if (b.length > 5000) throw new Error("댓글은 5,000자 이내");
+      await rest("POST", "qna_comments", { body: { post_id: id, author_user_id: user.id, body: b }, prefer: "return=representation" });
+    },
+    onSuccess: () => { setCommentBody(""); setErr(null); invalidate(); },
+    onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
+  });
+
+  const delComment = useMutation({
+    mutationFn: async (cid: string) => { await rest("DELETE", "qna_comments", { params: { id: `eq.${cid}` } }); },
+    onSuccess: invalidate,
+    onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
+  });
+
+  const toggleStatus = useMutation({
+    mutationFn: async () => {
+      if (!post) return;
+      const next = post.status === "OPEN" ? "CLOSED" : "OPEN";
+      await rest("PATCH", "qna_posts", { params: { id: `eq.${post.id}` }, body: { status: next } });
+    },
+    onSuccess: invalidate,
+    onError: (e) => setErr(e instanceof Error ? e.message : String(e)),
+  });
+
+  const delPost = useMutation({
+    mutationFn: async () => {
+      if (!post) return;
+      if (!window.confirm("게시글을 삭제할까요? 관련 댓글도 함께 삭제됩니다. 되돌릴 수 없습니다.")) throw new Error("__cancel__");
+      await rest("DELETE", "qna_comments", { params: { post_id: `eq.${post.id}` } });
+      await rest("DELETE", "qna_posts", { params: { id: `eq.${post.id}` } });
+    },
+    onSuccess: () => { invalidate(); navigate("/qna"); },
+    onError: (e) => { if (!(e instanceof Error && e.message === "__cancel__")) setErr(e instanceof Error ? e.message : String(e)); },
+  });
+
+  const authorMeta = useMemo(() => (post ? names.get(post.author_user_id) : undefined), [post, names]);
+
+  if (isLoading) return <section className="page-card"><div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>불러오는 중…</div></section>;
+  if (!post) return (
+    <section className="page-card">
+      <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>
+        게시글을 찾을 수 없습니다. <Link to="/qna" style={{ color: "#003876" }}>목록으로</Link>
+      </div>
+    </section>
+  );
 
   return (
     <section className="page-card">
-
       <div className="breadcrumb">
         <Link to="/qna">Q&amp;A 게시판</Link>
         <span className="sep">›</span>
-        <span>품목등록</span>
-        <span className="sep">›</span>
-        <span>#{id ?? "1247"}</span>
+        <span>{CATEGORY_LABEL[post.category]}</span>
       </div>
 
-      {/* 질문 */}
+      {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: 13, padding: "8px 12px", borderRadius: 6, marginBottom: 12 }} onClick={() => setErr(null)}>{err} (클릭하여 닫기)</div>}
+
       <article className="qa-question">
         <div className="qq-body">
-          <div className="qq-vote">
-            <button title="추천">▲</button>
-            <span className="v">12</span>
-            <button title="비추천">▼</button>
-            <div style={{ marginTop: 8, color: "#94a3b8", fontSize: "var(--app-fs-xs)" }} title="북마크">★ 4</div>
-          </div>
           <div className="qq-content">
-            <h2>품목코드 규칙 — 시멘트류 신규 등록 시 prefix 변경 가능한가요?</h2>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+              <h2>{post.title}</h2>
+              {canManage && (
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button className="btn-sec" style={{ fontSize: 12 }} onClick={() => toggleStatus.mutate()} disabled={toggleStatus.isPending}>
+                    {post.status === "OPEN" ? "🔒 종료" : "🔓 다시 열기"}
+                  </button>
+                  <button className="btn-sec" style={{ fontSize: 12 }} onClick={() => setEditOpen(true)}>✏ 수정</button>
+                  <button className="btn-sec" style={{ fontSize: 12, color: "#dc2626", borderColor: "#fca5a5" }} onClick={() => delPost.mutate()} disabled={delPost.isPending}>🗑 삭제</button>
+                </div>
+              )}
+            </div>
             <div className="qq-meta">
-              <span>👁 조회 246</span>
-              <span>💬 댓글 5</span>
-              <span>· 작성 2026-05-19</span>
-              <span>· 최종 활동 3시간 전</span>
-              <span className="badge b-approve">채택됨</span>
+              <span className="qa-tag">{CATEGORY_LABEL[post.category]}</span>
+              {post.status === "OPEN" ? <span className="badge b-warn">미해결</span> : <span className="badge b-approve">종료</span>}
+              <span>💬 댓글 {comments.length}</span>
+              <span>· 작성 {fmt(post.created_at)}</span>
+              {post.updated_at !== post.created_at && <span>· 수정 {fmt(post.updated_at)}</span>}
             </div>
 
-            <div className="doc-prose">
-              <p>현재 시멘트류 품목코드 규칙이 <code>M-OPC-XXX</code> / <code>M-FA-XXX</code> 로 굳어져 있는데, 안양·당진 사업소에서 별도 prefix(예: <code>AY-M-OPC-XXX</code>) 가 필요한 상황이 발생했습니다.</p>
-              <p>다음 두 가지 확인 부탁드립니다:</p>
-              <ol>
-                <li>품목코드 규칙 v1.2 문서의 표준 위반 없이 사업소별 prefix 가능한지</li>
-                <li>가능하다면 신규 등록 시 어떤 절차로 진행해야 하는지 (admin 권한 필요? PR? 자동 채번?)</li>
-              </ol>
-              <p>BOM 1,247건과 연결돼 있어 신중히 처리하고 싶습니다.</p>
-
-              <div className="callout warn">
-                <div className="ct-title">⚠ 시급도</div>
-                <p>2026-Q2 안양 신규 capa 증설 일정과 맞물려 5/30 전 결론 필요.</p>
-              </div>
-            </div>
-
-            <div className="qq-tags">
-              {["품목등록", "규칙", "prefix", "사업소"].map((t) => (
-                <span key={t} className="qa-tag">{t}</span>
-              ))}
-            </div>
+            <div className="doc-prose" style={{ whiteSpace: "pre-wrap", minHeight: 160, paddingTop: 12 }}>{post.body}</div>
 
             <div className="qq-author-card">
-              <div className="avatar">박</div>
+              <div className="avatar">{(authorMeta?.name || "?").slice(0, 1)}</div>
               <div>
-                <div className="label">질문자 · 2026-05-19 14:22</div>
-                <div className="name">박정민 · 구매팀</div>
-              </div>
-            </div>
-
-            <div className="qa-comments">
-              <div className="qa-comment">
-                <span className="c-author">김상동</span>
-                관련 회의록(2026-04-22)에서 한 번 다뤄진 적 있는 것 같습니다. 확인해보겠습니다.
-                <span className="c-time">2026-05-19 16:08</span>
-              </div>
-              <div className="qa-comment">
-                <span className="c-author">권익성</span>
-                품목코드 규칙 변경은 거버넌스 차원이라 PI팀 검토 필요합니다. 답변 드리겠습니다.
-                <span className="c-time">2026-05-19 17:30</span>
-              </div>
-              <div className="qa-comment">
-                <span className="c-add">+ 댓글 추가</span>
+                <div className="label">질문자 · {fmt(post.created_at)}</div>
+                <div className="name">{authorMeta?.name || "(알 수 없음)"}{authorMeta?.dept ? ` · ${authorMeta.dept}` : ""}</div>
               </div>
             </div>
           </div>
         </div>
       </article>
 
-      <div className="qa-answers-h">답변 3개 — 채택 ✓ 1</div>
+      <div className="qa-answers-h">댓글 {comments.length}개</div>
 
-      {/* 채택된 답변 */}
-      <article className="qa-answer accepted">
-        <div className="qa-accepted-badge">✓ 채택됨</div>
-        <div className="qa-body">
-          <div className="qa-vote">
-            <button title="추천">▲</button>
-            <span className="v">28</span>
-            <button title="비추천">▼</button>
-          </div>
-          <div className="qa-content">
-            <div className="doc-prose">
-              <p>결론부터 답변드리면 <strong>가능합니다.</strong> 단, 다음 3가지 조건이 충족돼야 합니다.</p>
-              <h3>1. 사업소 prefix 등록 절차</h3>
-              <ol>
-                <li>admin 권한으로 <code>/admin/site-prefix</code> 페이지에서 사업소 prefix 등록 (예: <code>AY</code> = 안양)</li>
-                <li>해당 사업소에서만 사용하는 품목으로 표시 (전사 공통은 기존 규칙 유지)</li>
-                <li>BOM 영향도 자동 분석 후 PR — 거버넌스 위반 시 알림</li>
-              </ol>
-              <h3>2. 표준 위반 여부</h3>
-              <p>품목코드 규칙 v1.2 §3.2 에 "사업소 prefix 는 표준 prefix 앞에 추가 가능" 명시. 위반 아닙니다.</p>
-              <h3>3. 진행 권장</h3>
-              <p>5/30 전 결론 필요하다면 다음 절차로:</p>
-              <ul>
-                <li>5/24 (월) 권한 신청 → admin 발급</li>
-                <li>5/27 (목) prefix 등록 + 테스트 (sandbox)</li>
-                <li>5/29 (토) 운영 반영 + BOM 1,247건 자동 마이그레이션</li>
-              </ul>
-              <div className="callout info">
-                <div className="ct-title">ℹ 참고 문서</div>
-                <p><Link to="/manual">품목코드 규칙 v1.2 §3.2 사업소 prefix</Link> · <a href="#">자동 마이그레이션 가이드</a></p>
+      <div className="qa-comments" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {comments.length === 0 ? (
+          <div style={{ color: "#94a3b8", fontSize: 14, padding: "12px 0" }}>아직 댓글이 없습니다</div>
+        ) : (
+          comments.map((c) => {
+            const m = names.get(c.author_user_id);
+            const canDel = (!!user && user.id === c.author_user_id) || isAdmin;
+            return (
+              <div key={c.id} className="qa-comment" style={{ display: "block" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+                  <span className="c-author">{m?.name || "(알 수 없음)"}{m?.dept ? ` · ${m.dept}` : ""}</span>
+                  <span style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                    <span className="c-time">{fmt(c.created_at)}</span>
+                    {canDel && <button onClick={() => delComment.mutate(c.id)} style={{ border: "none", background: "none", color: "#94a3b8", cursor: "pointer", fontSize: 12 }} title="삭제">🗑</button>}
+                  </span>
+                </div>
+                <div style={{ whiteSpace: "pre-wrap", fontSize: 14, color: "#1f2937" }}>{c.body}</div>
               </div>
-            </div>
-
-            <div className="qa-author-card">
-              <div className="avatar">권</div>
-              <div>
-                <div className="label">답변자 · 2026-05-20 09:15</div>
-                <div className="name">권익성 · 전략기획 (PI팀장)</div>
-              </div>
-            </div>
-
-            <div className="qa-comments">
-              <div className="qa-comment">
-                <span className="c-author">박정민</span>
-                답변 감사합니다. 권한 신청 바로 진행하겠습니다.
-                <span className="c-time">2026-05-20 09:42</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      {/* 일반 답변 */}
-      <article className="qa-answer">
-        <div className="qa-body">
-          <div className="qa-vote">
-            <button title="추천">▲</button>
-            <span className="v">8</span>
-            <button title="비추천">▼</button>
-          </div>
-          <div className="qa-content">
-            <div className="doc-prose">
-              <p>참고로, BOM 마이그레이션 시 자동 매핑 스크립트는 <code>scripts/migrate_prefix.py</code> 입니다. dry-run 옵션으로 영향도 미리 확인 가능합니다.</p>
-              <pre><code>{`python3 scripts/migrate_prefix.py \\
-  --site AY \\
-  --pattern "M-OPC-*" \\
-  --dry-run`}</code></pre>
-              <p>실 마이그레이션 전 dry-run 결과를 PI팀에 공유해주시면 좋습니다.</p>
-            </div>
-            <div className="qa-author-card">
-              <div className="avatar">김</div>
-              <div>
-                <div className="label">답변자 · 2026-05-20 11:08</div>
-                <div className="name">김상동 · SM1팀</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article className="qa-answer">
-        <div className="qa-body">
-          <div className="qa-vote">
-            <button title="추천">▲</button>
-            <span className="v">3</span>
-            <button title="비추천">▼</button>
-          </div>
-          <div className="qa-content">
-            <div className="doc-prose">
-              <p>당진 사업소도 동일한 요구가 있었습니다. 안양 ↔ 당진 둘 다 진행한다면 같은 PR 로 처리하면 효율적입니다.</p>
-            </div>
-            <div className="qa-author-card">
-              <div className="avatar">이</div>
-              <div>
-                <div className="label">답변자 · 2026-05-20 14:30</div>
-                <div className="name">이수영 · 품질팀</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      {/* 답변 작성 */}
-      <div className="qa-write">
-        <h3>답변 작성</h3>
-        <textarea placeholder="명확하고 구체적인 답변을 작성하세요. 마크다운·코드 블록·이미지 첨부 지원." />
-        <div className="qw-foot">
-          <span className="qw-hint">마크다운 지원 · 첨부 5MB 이하 · 답변 작성 후 30분 내 수정 가능</span>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn-sec">미리보기</button>
-            <button className="btn-pri">답변 등록</button>
-          </div>
-        </div>
+            );
+          })
+        )}
       </div>
 
+      <div className="qa-write">
+        <h3>댓글 작성</h3>
+        {user ? (
+          <>
+            <textarea value={commentBody} maxLength={5000} onChange={(e) => setCommentBody(e.target.value)} placeholder="댓글을 입력하세요" />
+            <div className="qw-foot">
+              <span className="qw-hint">{commentBody.length}/5,000</span>
+              <button className="btn-pri" onClick={() => addComment.mutate()} disabled={addComment.isPending}>{addComment.isPending ? "등록 중…" : "등록"}</button>
+            </div>
+          </>
+        ) : (
+          <div style={{ color: "#94a3b8", fontSize: 14, padding: "8px 0" }}>댓글 작성은 로그인이 필요합니다</div>
+        )}
+      </div>
+
+      <QnaPostDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => setEditOpen(false)}
+        existing={{ id: post.id, category: post.category, title: post.title, body: post.body }}
+      />
     </section>
   );
 }
