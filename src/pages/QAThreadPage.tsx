@@ -142,20 +142,13 @@ export function QAThreadPage() {
             <div className="qq-meta">
               <span className="qa-tag">{CATEGORY_LABEL[post.category]}</span>
               {post.status === "OPEN" ? <span className="badge b-warn">미해결</span> : <span className="badge b-approve">종료</span>}
+              <span style={{ fontWeight: 600, color: "var(--c-text)" }}>👤 {authorMeta?.name || "(알 수 없음)"}{authorMeta?.dept ? ` · ${authorMeta.dept}` : ""}</span>
               <span>💬 댓글 {comments.length}</span>
               <span>· 작성 {fmt(post.created_at)}</span>
               {post.updated_at !== post.created_at && <span>· 수정 {fmt(post.updated_at)}</span>}
             </div>
 
-            <div className="doc-prose" style={{ whiteSpace: "pre-wrap", minHeight: 160, paddingTop: 12 }}>{post.body}</div>
-
-            <div className="qq-author-card">
-              <div className="avatar">{(authorMeta?.name || "?").slice(0, 1)}</div>
-              <div>
-                <div className="label">질문자 · {fmt(post.created_at)}</div>
-                <div className="name">{authorMeta?.name || "(알 수 없음)"}{authorMeta?.dept ? ` · ${authorMeta.dept}` : ""}</div>
-              </div>
-            </div>
+            <div className="doc-prose" style={{ whiteSpace: "pre-wrap", minHeight: 160, paddingTop: 16, marginTop: 14, borderTop: "1px solid var(--c-border)" }}>{post.body}</div>
           </div>
         </div>
       </article>
