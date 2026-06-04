@@ -125,7 +125,7 @@ export function QAThreadPage() {
       {err && <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: 13, padding: "8px 12px", borderRadius: 6, marginBottom: 12 }} onClick={() => setErr(null)}>{err} (클릭하여 닫기)</div>}
 
       <article className="qa-question">
-        <div className="qq-body">
+        <div className="qq-body" style={{ display: "block" }}>
           <div className="qq-content">
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
               <h2>{post.title}</h2>
