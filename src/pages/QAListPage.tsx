@@ -18,14 +18,9 @@ type PostRow = {
 type Post = PostRow & { authorName: string; authorDept: string; commentCount: number };
 
 type Tab = "all" | "open" | "my" | "closed";
-type CatFilter = "all" | QnaCategory;
 
 const CATEGORY_LABEL: Record<QnaCategory, string> = { bug: "버그", improvement: "개선요청", question: "질문", other: "기타" };
 
-function cardState(p: Post): "accepted" | "answered" | "pending" {
-  if (p.status === "CLOSED") return "accepted";
-  return p.commentCount > 0 ? "answered" : "pending";
-}
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" });
 }
@@ -33,7 +28,6 @@ function fmtDate(s: string) {
 export function QAListPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("all");
-  const [cat, setCat] = useState<CatFilter>("all");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -78,11 +72,10 @@ export function QAListPage() {
       if (tab === "open" && p.status !== "OPEN") return false;
       if (tab === "closed" && p.status !== "CLOSED") return false;
       if (tab === "my" && (!user || p.author_user_id !== user.id)) return false;
-      if (cat !== "all" && p.category !== cat) return false;
       if (q && !(p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || p.authorName.toLowerCase().includes(q))) return false;
       return true;
     });
-  }, [posts, tab, cat, search, user]);
+  }, [posts, tab, search, user]);
 
   const popular = useMemo(() => [...posts].sort((a, b) => b.commentCount - a.commentCount).slice(0, 3), [posts]);
   const unanswered = useMemo(() => posts.filter((p) => p.status === "OPEN" && p.commentCount === 0).slice(0, 4), [posts]);
@@ -100,13 +93,6 @@ export function QAListPage() {
         <h2>무엇이 궁금하신가요?</h2>
         <p>이미 누군가 물어본 답일 수 있습니다. 검색 → 없으면 새 질문을 등록하세요.</p>
         <input type="search" className="sh-input" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="질문을 검색하세요 — 제목·본문·작성자" />
-        <div className="sh-tags">
-          <span className="lbl">카테고리</span>
-          <button className="sh-tag" onClick={() => setCat("all")} style={cat === "all" ? activeTag : undefined}>전체</button>
-          {(Object.keys(CATEGORY_LABEL) as QnaCategory[]).map((c) => (
-            <button key={c} className="sh-tag" onClick={() => setCat(c)} style={cat === c ? activeTag : undefined}>#{CATEGORY_LABEL[c]}</button>
-          ))}
-        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 18 }}>
@@ -143,10 +129,9 @@ export function QAListPage() {
               </div>
             ) : (
               filtered.map((q) => (
-                <Link key={q.id} to={`/qna/thread/${q.id}`} className="qa-card" style={{ textDecoration: "none", color: "inherit" }}>
-                  <div className={`qa-stat ${cardState(q)}`}>
-                    <span className="num">{q.commentCount}</span>
-                    <span className="lbl">댓글</span>
+                <Link key={q.id} to={`/qna/thread/${q.id}`} className="qa-card" style={{ textDecoration: "none", color: "inherit", gridTemplateColumns: "84px 1fr 170px" }}>
+                  <div className="qa-stat" style={{ textAlign: "center", fontSize: "var(--app-fs-sm)", color: "var(--c-text-sub)", lineHeight: 1.4 }}>
+                    {fmtDate(q.created_at)}
                   </div>
                   <div className="qa-main">
                     <div className="qa-title">{q.title}</div>
@@ -154,14 +139,11 @@ export function QAListPage() {
                     <div className="qa-meta">
                       <span className="qa-tag">{CATEGORY_LABEL[q.category]}</span>
                       <span>💬 {q.commentCount}</span>
-                      <span>· {fmtDate(q.created_at)}</span>
                       {q.status === "OPEN" ? <span className="badge b-warn">미해결</span> : <span className="badge b-approve">종료</span>}
                     </div>
                   </div>
-                  <div className="qa-author">
-                    <span className="name">{q.authorName}</span>
-                    {q.authorDept && <span>{q.authorDept}</span>}
-                    <span>{fmtDate(q.created_at)}</span>
+                  <div className="qa-author" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <span style={{ color: "var(--c-accent-500)", fontWeight: 600 }}>{q.authorName}</span>{q.authorDept ? ` · ${q.authorDept}` : ""}
                   </div>
                 </Link>
               ))
@@ -214,5 +196,3 @@ export function QAListPage() {
     </>
   );
 }
-
-const activeTag: React.CSSProperties = { background: "#003876", color: "#fff", borderColor: "#003876" };
