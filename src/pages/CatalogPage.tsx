@@ -216,7 +216,6 @@ export function CatalogPage() {
         .cat-pager .nav:hover:not(:disabled) { background: #eff6ff; border-color: var(--c-navy-600); }
         .cat-pager .nav:disabled { opacity: .4; cursor: not-allowed; }
         .cat-pager .pos { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--c-navy-600); }
-        .cat-pager .tot { font-variant-numeric: tabular-nums; }
       `}</style>
 
       <CatalogFilters
@@ -230,7 +229,6 @@ export function CatalogPage() {
           const totalPages = Math.max(1, Math.ceil(totalCount / pageState.pageSize));
           return (
             <div className="cat-pager">
-              <span className="tot">총 {totalCount.toLocaleString("ko-KR")}건</span>
               <select
                 value={pageState.pageSize}
                 onChange={(e) => gridApiRef.current?.setGridOption("paginationPageSize", Number(e.target.value))}
