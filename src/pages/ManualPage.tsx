@@ -18,39 +18,44 @@ export function ManualPage() {
         <div className="toc-group">
           <div className="toc-h">시작하기</div>
           <a href="#intro">소개</a>
-          <a href="#first-login">최초 로그인</a>
-          <a href="#nav-basics">화면 구성·이동</a>
-          <a href="#font-size">글꼴 크기 조절</a>
+          <a href="#login">로그인·권한</a>
+          <a href="#layout">화면 구성</a>
+          <a href="#fontsize">글꼴 크기</a>
         </div>
 
         <div className="toc-group">
-          <div className="toc-h">품목 마스터</div>
-          <a href="#item-overview">개요</a>
-          <a href="#item-register" className="active">신규 등록</a>
-          <a href="#item-register" className="depth-2">기본 정보 입력</a>
-          <a href="#item-register" className="depth-2">필수 항목 체크</a>
-          <a href="#item-register" className="depth-2">검토 요청</a>
-          <a href="#item-edit">수정</a>
-          <a href="#item-bulk">엑셀 일괄 업로드</a>
-          <a href="#item-deactivate">비활성화·복원</a>
+          <div className="toc-h">품목 신규 등록</div>
+          <a href="#reg-flow">등록 흐름</a>
+          <a href="#reg-classify" className="depth-2">1. 분류 선택</a>
+          <a href="#reg-input" className="depth-2">2. 정보·속성 입력</a>
+          <a href="#reg-ai" className="depth-2">3. AI 분석·중복검사</a>
+          <a href="#reg-submit" className="depth-2">4. 제출·임시저장</a>
+          <a href="#variant">변형 품목 등록</a>
         </div>
 
         <div className="toc-group">
-          <div className="toc-h">BOM 관리</div>
-          <a href="#bom-overview">개요</a>
-          <a href="#bom-create">BOM 작성</a>
-          <a href="#bom-cost">원가 계산</a>
+          <div className="toc-h">검토·승인</div>
+          <a href="#ai-review">AI 1차 검토</a>
+          <a href="#review-3step">3단계 검토</a>
+          <a href="#status">상태 흐름</a>
         </div>
 
         <div className="toc-group">
-          <div className="toc-h">권한 (RBAC)</div>
-          <a href="#rbac">9 role 매트릭스</a>
-          <a href="#permission-req">권한 신청</a>
+          <div className="toc-h">코드·표준명</div>
+          <a href="#code-rule">품목코드 규칙</a>
+          <a href="#normalized">표준명(품명 자동조합)</a>
+        </div>
+
+        <div className="toc-group">
+          <div className="toc-h">카탈로그·분류</div>
+          <a href="#catalog">카탈로그·법인 배포</a>
+          <a href="#classification">분류·속성 체계</a>
         </div>
 
         <div className="toc-group">
           <div className="toc-h">참고</div>
-          <a href="#shortcuts">단축키</a>
+          <a href="#rbac">권한(RBAC)</a>
+          <a href="#qna">개선요청(Q&A)</a>
           <a href="#troubleshooting">트러블슈팅</a>
           <a href="#changelog">변경 이력</a>
         </div>
@@ -62,109 +67,162 @@ export function ManualPage() {
         <div className="breadcrumb">
           <Link to="/manual">매뉴얼</Link>
           <span className="sep">›</span>
-          <a href="#item-overview">품목 마스터</a>
-          <span className="sep">›</span>
-          <span>신규 등록</span>
+          <span>삼표 품목코드 시스템 사용 안내</span>
         </div>
 
         <div className="page-h" style={{ marginBottom: 8 }}>
           <div>
-            <h1>품목 신규 등록 <span className="text-xs text-gray-500 font-normal ml-2">/ manual/item/register</span></h1>
-            <div className="meta">최종 수정 2026-05-15 · 작성 PI팀 권익성 · 매뉴얼 v0.3</div>
+            <h1>삼표 품목코드 시스템(MDM) 매뉴얼 <span className="text-xs text-gray-500 font-normal ml-2">/ manual</span></h1>
+            <div className="meta">최종 수정 2026-06-05 · 작성 PI팀 · 매뉴얼 v1.0</div>
           </div>
           <div className="actions">
             <button className="btn-sec" title="인쇄">🖨 인쇄</button>
-            <button className="btn-sec" title="피드백 제출">💬 피드백</button>
+            <Link to="/qna" className="btn-sec" title="질문하기">💬 Q&amp;A</Link>
           </div>
         </div>
 
         <div className="doc-prose">
 
-          <h2 id="item-register-h">개요</h2>
-          <p>품목 마스터에 신규 항목을 등록합니다. 등록된 품목은 즉시 BOM·발주·재고 시스템에 반영되므로 정확성이 매우 중요합니다.</p>
-
+          {/* 시작하기 */}
+          <h2 id="intro">소개</h2>
+          <p>삼표 MDM은 14개 법인이 공유하는 <strong>품목 마스터(자재 코드)를 표준화</strong>하는 시스템입니다. 사용자가 신규 품목을 신청하면 <strong>AI 1차 검토 → 사람 3단계 검토</strong>를 거쳐 승인되고, 승인된 품목은 12자리 표준 코드가 발급되어 <strong>ERP로 자동 전송</strong>됩니다.</p>
           <div className="callout info">
-            <div className="ct-title">ℹ 권한</div>
-            <p>품목 신규 등록은 <code>admin</code> · <code>ops_mgr</code> · <code>plant_mgr</code> 권한이 필요합니다. 권한이 없을 경우 <a href="#permission-req">권한 신청</a> 절차를 참고하세요.</p>
+            <div className="ct-title">ℹ 표준화 범위</div>
+            <p>현재 표준화 대상은 <strong>저장품 · 연료/유지류</strong> 중심입니다. 신규 등록은 본 시스템에서, 기존 품목 정리는 카탈로그에서 진행합니다.</p>
           </div>
 
-          <h2 id="step-1">1단계 — 기본 정보 입력</h2>
-          <p>품목 목록 화면에서 우측 상단 <kbd>+ 신규 등록</kbd> 버튼을 클릭하면 등록 화면이 열립니다.</p>
-          <h3>1.1 필수 입력 항목</h3>
+          <h2 id="login">로그인·권한</h2>
           <ul>
-            <li><strong>품목코드</strong> — <code>M-XXX-NNN</code> 패턴. 자세한 규칙은 <a href="#item-code-rule">품목코드 규칙</a> 참조</li>
-            <li><strong>품명</strong> — 한글 권장, 50자 이내</li>
-            <li><strong>대분류</strong> — 원재료 / 반제품 / 완제품 중 택일</li>
-            <li><strong>관리단위(UOM)</strong> — ton / kg / m³ / EA</li>
+            <li><strong>로그인</strong> — 회사 Google 계정(<code>@sampyo.co.kr</code> / <code>@sampyoenc.com</code>)으로 접속합니다.</li>
+            <li><strong>최초 로그인</strong> — 사전 등록된 권한이 자동 부여됩니다. 권한이 없으면 관리자에게 요청하세요.</li>
+            <li>역할은 <a href="#rbac">권한(RBAC)</a> 섹션 참고 — 신청(user) / 검토·승인(reviewer) / 관리(admin).</li>
           </ul>
 
-          <h3>1.2 권장 입력 항목</h3>
+          <h2 id="layout">화면 구성</h2>
+          <p>좌측 <strong>사이드바</strong>로 메뉴를 이동합니다: 대시보드 · 품목등록 · 품목마스터(카탈로그) · 분류관리 · 속성마스터 · 제조사관리 · AI 관리 · 시스템관리 · 개선요청(Q&amp;A). 관리자 전용 메뉴(시스템관리·AI 관리 등)는 일반 사용자에게 보이지 않습니다.</p>
+
+          <h2 id="fontsize">글꼴 크기</h2>
+          <p>상단 헤더의 <kbd>A−</kbd> <kbd>A</kbd> <kbd>A+</kbd> <kbd>A++</kbd> 버튼으로 전체 화면 글꼴 크기를 조절할 수 있습니다. 설정은 자동 저장됩니다.</p>
+
+          {/* 신규 등록 */}
+          <h2 id="reg-flow">품목 신규 등록 흐름</h2>
+          <p>사이드바 <strong>품목등록 › 신규 등록</strong>에서 진행합니다. 순서는 다음과 같습니다.</p>
+
+          <h3 id="reg-classify">1. 분류 선택 (필수)</h3>
+          <p><strong>대분류 → 중분류 → 소분류</strong>를 순서대로 선택합니다. 소분류가 품목코드와 속성 구성을 결정하므로 반드시 끝까지 선택해야 합니다.</p>
+
+          <h3 id="reg-input">2. 정보·속성 입력</h3>
+          <ul>
+            <li><strong>품명·규격</strong> — 신청 품목명과 규격</li>
+            <li><strong>제조사·모델</strong> — 구매품의 경우 입력 권장 (중복 식별에 사용)</li>
+            <li><strong>속성</strong> — 소분류에 매핑된 속성 값 (입력 시 기존 값 자동완성 제공)</li>
+            <li><strong>첨부</strong> — 도면·사진·문서 첨부 가능</li>
+          </ul>
+
+          <h3 id="reg-ai">3. AI 분석·중복검사</h3>
+          <p>입력 내용을 바탕으로 AI가 <strong>분류 추천 · 표준명 생성 · 중복 위험도</strong>를 분석합니다. 제출 시 시스템이 자동으로 중복을 검사합니다.</p>
+          <div className="callout warn">
+            <div className="ct-title">⚠ 중복 차단</div>
+            <p>같은 소분류에 <strong>표준명이 동일</strong>한 품목이 있으면 등록이 차단됩니다. 제조사만 다른 경우 <strong>변형 품목</strong>으로 등록하도록 안내됩니다. (<a href="#normalized">표준명</a> 참고)</p>
+          </div>
+
+          <h3 id="reg-submit">4. 제출·임시저장</h3>
+          <ol>
+            <li><kbd>임시저장</kbd> 시 <span className="badge b-warn">DRAFT</span> 상태로 보관되어 나중에 이어쓸 수 있습니다.</li>
+            <li><kbd>제출</kbd> 시 요청번호(<code>R + YYMMDD + 순번</code>, 예 <code>R2606050001</code>)가 발급되고 검토 절차가 시작됩니다.</li>
+          </ol>
+
+          <h2 id="variant">변형 품목 등록</h2>
+          <p>기존 품목과 규격·속성이 같고 일부만 다른 경우, 카탈로그 상세에서 <strong>변형 등록</strong>으로 진행합니다. 변형은 기본형(<code>00</code>) 뒤에 <code>01</code>, <code>02</code>… 순으로 코드가 부여됩니다.</p>
+
+          {/* 검토 승인 */}
+          <h2 id="ai-review">AI 1차 검토</h2>
+          <p>제출 즉시 AI가 1차 검토를 수행합니다(정식 가동 중). 결과에 따라 자동으로 다음 중 하나로 분기합니다.</p>
+          <ul>
+            <li><strong>통과</strong> → 사람 2차 검토 대기로 이동</li>
+            <li><strong>반려</strong> → <span className="badge b-error">반려</span> (사유 통보)</li>
+            <li><strong>보완 요청</strong> → 신청자에게 반환(분류·속성 보완 필요)</li>
+            <li><strong>수동 검토</strong> → 판단 보류 시 사람 검토로 위임</li>
+          </ul>
+
+          <h2 id="review-3step">3단계 검토</h2>
+          <p>품목은 최대 3단계(1차 → 2차 → 3차) 사람 검토를 거칩니다. 검토자는 <strong>회사·계열별로 지정</strong>되며, 각 단계에서 승인 / 반려 / 보완 요청을 할 수 있습니다.</p>
+          <p>최종 승인되면 <strong>12자리 품목코드</strong>가 발급되고, 카탈로그 등록과 <strong>ERP 전송 큐</strong>가 자동 생성됩니다.</p>
+
+          <h2 id="status">상태 흐름</h2>
           <table>
-            <thead>
-              <tr><th>항목</th><th>설명</th><th>예시</th></tr>
-            </thead>
+            <thead><tr><th>상태</th><th>의미</th></tr></thead>
             <tbody>
-              <tr><td>영문명</td><td>해외 거래·문서용</td><td>Ordinary Portland Cement</td></tr>
-              <tr><td>규격</td><td>KS·JIS 등 인증 규격</td><td>KS L 5201:2021</td></tr>
-              <tr><td>밀도</td><td>g/cm³ 단위 — 환산 계산에 사용</td><td>3.15</td></tr>
-              <tr><td>유통기한</td><td>일 단위</td><td>90</td></tr>
+              <tr><td><span className="badge b-warn">DRAFT</span></td><td>임시저장 (제출 전)</td></tr>
+              <tr><td>PENDING_REVIEW_1~3</td><td>1·2·3차 검토 대기</td></tr>
+              <tr><td>AI 보완요청 / 수동검토</td><td>신청자 보완 또는 사람 수동 검토 대기</td></tr>
+              <tr><td><span className="badge b-approve">APPROVED</span></td><td>승인 — 코드 발급·ERP 전송</td></tr>
+              <tr><td><span className="badge b-error">REJECTED</span></td><td>반려 — 사유 통보</td></tr>
             </tbody>
           </table>
 
-          <div className="callout warn">
-            <div className="ct-title">⚠ 주의</div>
-            <p>품목코드는 등록 후 변경 시 관련 BOM·재고의 키 갱신이 필요합니다. <strong>신중히 입력</strong>하세요.</p>
-          </div>
+          {/* 코드 표준명 */}
+          <h2 id="code-rule">품목코드 규칙</h2>
+          <p>품목코드는 <strong>12자리</strong>이며 의미 단위로 구성됩니다.</p>
+          <table>
+            <thead><tr><th>구간</th><th>자리수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td>대분류</td><td>1</td><td>예: M(기계부속)</td></tr>
+              <tr><td>중분류</td><td>2</td><td>예: LN</td></tr>
+              <tr><td>소분류</td><td>3</td><td>예: CAB</td></tr>
+              <tr><td>일련번호</td><td>4</td><td>예: 0001</td></tr>
+              <tr><td>변형</td><td>2</td><td>기본형 00, 변형 01·02…</td></tr>
+            </tbody>
+          </table>
+          <p>화면 표기는 가독성을 위해 5구간을 하이픈으로 구분합니다: <code>M-LN-CAB-0001-00</code> (DB 저장은 연속 12자).</p>
 
-          <h2 id="step-2">2단계 — 물성·관리 정보</h2>
-          <p>물성 값은 BOM 의 원가·중량 계산에 직접 사용되므로 정확해야 합니다.</p>
-
+          <h2 id="normalized">표준명 (품명 자동조합)</h2>
+          <p>표준명은 <strong>소분류명 + 이름에 포함하도록 지정된 속성값</strong>을 순서대로 자동 조합한 이름입니다. 예: <code>주조강구 직경30 경도90</code>.</p>
           <div className="callout tip">
-            <div className="ct-title">💡 팁</div>
-            <p>비슷한 기존 품목이 있다면 상세 페이지에서 <kbd>복제</kbd> 버튼으로 시작하세요. 기본값이 자동 채워져 시간이 단축됩니다.</p>
+            <div className="ct-title">💡 왜 중요한가</div>
+            <p>사람마다 다르게 적는 품명과 무관하게 <strong>같은 물건은 항상 같은 표준명</strong>이 되도록 합니다. 이 표준명이 <strong>중복 방지 키</strong>이자 <strong>ERP 전송 품명</strong>으로 쓰입니다.</p>
           </div>
 
-          <h2 id="step-3">3단계 — 검토 요청</h2>
-          <p>모든 항목 입력 후 우측 하단 <kbd>검토 요청 후 저장</kbd> 버튼을 클릭합니다.</p>
-          <ol>
-            <li>품목이 <span className="badge b-submit">제출</span> 상태로 저장됩니다.</li>
-            <li>해당 도메인 책임자 (시멘트 → 구매팀장 / 골재 → SM1) 에게 알림이 발송됩니다.</li>
-            <li>책임자가 승인하면 <span className="badge b-approve">승인</span> → 전사 사용 가능.</li>
-            <li>반려 시 <span className="badge b-error">반려</span> → 작성자에게 사유 통보.</li>
-          </ol>
+          {/* 카탈로그 분류 */}
+          <h2 id="catalog">카탈로그 · 법인 배포</h2>
+          <p>사이드바 <strong>품목마스터 › 품목 카탈로그</strong>에서 전체 활성 품목을 대/중/소분류 필터와 검색으로 조회합니다. 상세 화면에서 속성·제조사·<strong>법인 배포 현황</strong>을 확인하고, 편집·변형 등록·사용 중지(REVOKE)를 할 수 있습니다.</p>
+          <p>하나의 품목을 여러 법인(최대 14개)이 공유할 수 있으며, 법인에 배포하면 해당 법인의 ERP로 전송됩니다.</p>
 
-          <h3>3.1 검토 SLA</h3>
-          <p>책임자는 영업일 기준 <strong>1일 내</strong> 검토 완료. 미처리 시 자동 escalation.</p>
+          <h2 id="classification">분류·속성 체계</h2>
+          <p>분류는 <strong>대 16 / 중 138 / 소 652</strong>로 구성됩니다. 소분류마다 <strong>분류-속성 매핑</strong>으로 입력 속성이 정의되며, 이 중 일부 속성이 표준명에 포함됩니다. 속성·단위·제조사 마스터는 관리자가 관리합니다.</p>
 
-          <h2 id="step-4">4단계 — 등록 완료 후</h2>
-          <p>승인된 품목은 약 5분 내 전사 시스템(BOM·발주·재고)에 동기화됩니다. 동기화 상태는 우상단 <code>30s</code> 표시(LIVE)로 확인 가능합니다.</p>
+          {/* 참고 */}
+          <h2 id="rbac">권한 (RBAC)</h2>
+          <table>
+            <thead><tr><th>역할</th><th>할 수 있는 일</th></tr></thead>
+            <tbody>
+              <tr><td><strong>user</strong></td><td>품목 신규 신청, 본인 요청·카탈로그 조회</td></tr>
+              <tr><td><strong>reviewer</strong></td><td>지정 회사·계열의 품목 검토·승인/반려</td></tr>
+              <tr><td><strong>admin</strong></td><td>전체 + 분류·속성·제조사·사용자 등 마스터 관리</td></tr>
+            </tbody>
+          </table>
 
-          <h2 id="faq">자주 묻는 질문</h2>
-          <h3>Q. 임시 저장한 품목은 어디서 찾나요?</h3>
-          <p>품목 목록의 상단 탭 <strong>내 초안</strong> 에서 확인 가능합니다. 14일간 보관 후 자동 삭제됩니다.</p>
+          <h2 id="qna">개선요청 (Q&amp;A)</h2>
+          <p>사이드바 <strong>개선요청(Q&amp;A)</strong>에서 버그·개선요청·질문을 등록하고 댓글로 소통합니다. 처리되면 글이 <span className="badge b-approve">종료</span> 상태가 됩니다. → <Link to="/qna">Q&amp;A 바로가기</Link></p>
 
-          <h3>Q. 검토 요청 후 수정하고 싶어요</h3>
-          <p>검토 시작 전이면 작성자가 회수 가능. 검토 시작 후엔 책임자에게 반려 요청.</p>
-
-          <div className="callout danger">
-            <div className="ct-title">⚠ 절대 하지 말 것</div>
-            <p>승인된 품목의 단가를 사유 없이 변경하지 마세요. 모든 단가 변경은 감사 로그에 기록되며 분기 감사 대상입니다.</p>
-          </div>
-
-          <h2 id="related">관련 문서</h2>
+          <h2 id="troubleshooting">트러블슈팅</h2>
           <ul>
-            <li><a href="#">품목코드 규칙 v1.2</a></li>
-            <li><a href="#">BOM 작성 가이드</a></li>
-            <li><Link to="/qna">관련 Q&amp;A (12건)</Link></li>
+            <li><strong>화면이 갱신되지 않을 때</strong> — <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> (강력 새로고침)으로 캐시를 비웁니다.</li>
+            <li><strong>메뉴가 보이지 않을 때</strong> — 권한에 따라 일부 메뉴가 숨겨집니다(관리자 전용). 관리자에게 문의하세요.</li>
+            <li><strong>중복으로 차단될 때</strong> — 같은 표준명 품목이 이미 있는 경우입니다. 제조사가 다르면 변형 등록으로 진행하세요.</li>
+          </ul>
+
+          <h2 id="changelog">변경 이력</h2>
+          <ul>
+            <li><strong>v1.0 (2026-06-05)</strong> — 실제 MDM 시스템 기준 전면 작성 (12자리 코드 · AI 1차+3단계 검토 · 표준명 · 법인 배포)</li>
           </ul>
 
           <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "var(--app-fs-sm)", color: "var(--c-text-sub)" }}>
-            <div><a href="#" style={{ color: "var(--c-accent-500)" }}>← 이전: 개요</a></div>
+            <div>문의·개선 제안은 <Link to="/qna" style={{ color: "var(--c-accent-500)" }}>개선요청(Q&amp;A)</Link>으로</div>
             <div>도움이 되었나요? &nbsp;
-              <button className="btn-ghost" style={{ padding: "4px 10px" }}>👍 예 (24)</button>
-              <button className="btn-ghost" style={{ padding: "4px 10px" }}>👎 아니오 (1)</button>
+              <button className="btn-ghost" style={{ padding: "4px 10px" }}>👍 예</button>
+              <button className="btn-ghost" style={{ padding: "4px 10px" }}>👎 아니오</button>
             </div>
-            <div><a href="#" style={{ color: "var(--c-accent-500)" }}>다음: 수정 →</a></div>
           </div>
         </div>
       </section>
@@ -172,16 +230,18 @@ export function ManualPage() {
       {/* 우측 anchor */}
       <nav className="manual-anchors">
         <div className="ma-title">이 페이지</div>
-        <a href="#item-register-h">개요</a>
-        <a href="#step-1" className="active">1단계 — 기본 정보</a>
-        <a href="#step-1" className="depth-2">필수 입력 항목</a>
-        <a href="#step-1" className="depth-2">권장 입력 항목</a>
-        <a href="#step-2">2단계 — 물성·관리</a>
-        <a href="#step-3">3단계 — 검토 요청</a>
-        <a href="#step-3" className="depth-2">검토 SLA</a>
-        <a href="#step-4">4단계 — 등록 완료 후</a>
-        <a href="#faq">자주 묻는 질문</a>
-        <a href="#related">관련 문서</a>
+        <a href="#intro">소개</a>
+        <a href="#login">로그인·권한</a>
+        <a href="#reg-flow">신규 등록 흐름</a>
+        <a href="#variant">변형 품목</a>
+        <a href="#ai-review">AI 1차 검토</a>
+        <a href="#review-3step">3단계 검토</a>
+        <a href="#status">상태 흐름</a>
+        <a href="#code-rule">품목코드 규칙</a>
+        <a href="#normalized">표준명</a>
+        <a href="#catalog">카탈로그·배포</a>
+        <a href="#rbac">권한(RBAC)</a>
+        <a href="#troubleshooting">트러블슈팅</a>
       </nav>
 
     </div>
