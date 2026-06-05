@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, rest, rpc } from "./supabase";
 import type { ItemRow } from "./catalogQueries";
 
 export type LinkedCompany = {
@@ -12,7 +12,42 @@ export type LinkedCompany = {
   stock_unit_code: string | null;
   item_account_code: string | null;
   item_class_code: string | null;
+  site_id: string | null;
+  site_name: string | null;
+  equipment_name: string | null;
 };
+
+export type CompanyOption = { id: string; code: string; name: string };
+export type SiteOption = { id: string; code: string; name: string };
+
+/** 활성 법인 목록 (배포 대상 선택) */
+export async function fetchActiveCompanies(): Promise<CompanyOption[]> {
+  return rest<CompanyOption[]>("GET", "companies", {
+    params: { select: "id,code,name", is_active: "eq.true", order: "sort_order.asc", limit: "100" },
+  });
+}
+
+/** 특정 법인의 활성 사업장 목록 */
+export async function fetchCompanySites(companyId: string): Promise<SiteOption[]> {
+  return rest<SiteOption[]>("GET", "sites", {
+    params: { select: "id,code,name", company_id: `eq.${companyId}`, is_active: "eq.true", order: "name.asc", limit: "500" },
+  });
+}
+
+/** 법인(+사업장/설비) 배포 — A-1 distribute RPC */
+export async function distributeToCompany(args: {
+  itemCode: string;
+  companyCode: string;
+  siteId?: string | null;
+  equipmentName?: string | null;
+}): Promise<{ success?: boolean; error?: string; erp_skipped?: boolean; reason?: string }> {
+  return rpc("distribute_item_to_company", {
+    p_item_code: args.itemCode,
+    p_target_company_code: args.companyCode,
+    p_site_id: args.siteId ?? null,
+    p_equipment_name: args.equipmentName ?? null,
+  });
+}
 
 export type AttributeSlot = {
   sort_order: number;
@@ -46,13 +81,23 @@ export async function fetchItemDetail(item: ItemRow): Promise<ItemDetailBundle> 
   // 사용법인
   const linked: LinkedCompany[] = [];
   if (item.id) {
-    const { data } = await supabase
-      .from("item_companies")
-      .select(`is_active, source, added_at, stock_unit_code, item_account_code, item_class_code,
-               company:companies(id, code, name, is_active)`)
-      .eq("item_id", item.id);
+    // types.ts(자동생성)가 신규 컬럼(site_id 등) 미반영 → rest() 문자열 쿼리로 우회
+    type ICRow = {
+      is_active: boolean | null; source: string | null; added_at: string;
+      stock_unit_code: string | null; item_account_code: string | null; item_class_code: string | null;
+      site_id: string | null; equipment_name: string | null;
+      company: { id: string; code: string; name: string; is_active: boolean } | null;
+      site: { name: string } | null;
+    };
+    const data = await rest<ICRow[]>("GET", "item_companies", {
+      params: {
+        select:
+          "is_active,source,added_at,stock_unit_code,item_account_code,item_class_code,site_id,equipment_name,company:companies(id,code,name,is_active),site:sites(name)",
+        item_id: `eq.${item.id}`,
+      },
+    });
     for (const r of data ?? []) {
-      const c = r.company as unknown as { id: string; code: string; name: string; is_active: boolean } | null;
+      const c = r.company;
       if (!c) continue;
       linked.push({
         id: c.id,
@@ -65,6 +110,9 @@ export async function fetchItemDetail(item: ItemRow): Promise<ItemDetailBundle> 
         stock_unit_code: r.stock_unit_code,
         item_account_code: r.item_account_code,
         item_class_code: r.item_class_code,
+        site_id: r.site_id ?? null,
+        site_name: r.site?.name ?? null,
+        equipment_name: r.equipment_name ?? null,
       });
     }
     linked.sort((a, b) => a.code.localeCompare(b.code));
