@@ -119,8 +119,9 @@ export function CatalogPage() {
             sort ? sort.sort === "asc" : true,
           );
           setTotalCount(total);
-          const lastRow = params.endRow >= total ? total : undefined;
-          params.successCallback(rows, lastRow);
+          // total은 서버가 항상 반환 → lastRow로 항상 전달해야 전체 페이지수가 고정됨
+          // (미전달 시 Infinite 모델이 블록을 로드할 때마다 총 페이지가 늘어남)
+          params.successCallback(rows, total);
         } catch (e) {
           console.error("[catalog] fetch error", e);
           params.failCallback();
@@ -215,6 +216,7 @@ export function CatalogPage() {
         .cat-pager .nav:hover:not(:disabled) { background: #eff6ff; border-color: var(--c-navy-600); }
         .cat-pager .nav:disabled { opacity: .4; cursor: not-allowed; }
         .cat-pager .pos { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--c-navy-600); }
+        .cat-pager .tot { font-variant-numeric: tabular-nums; }
       `}</style>
 
       <CatalogFilters
@@ -224,19 +226,23 @@ export function CatalogPage() {
         isOptionsLoading={categoryOptions.isLoading}
         totalCount={totalCount}
         onSearch={() => setAppliedFilters(filters)}
-        extra={
-          <div className="cat-pager">
-            <select
-              value={pageState.pageSize}
-              onChange={(e) => gridApiRef.current?.setGridOption("paginationPageSize", Number(e.target.value))}
-            >
-              {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}개</option>)}
-            </select>
-            <button className="nav" onClick={() => gridApiRef.current?.paginationGoToPreviousPage()} disabled={pageState.page <= 0}>‹</button>
-            <span className="pos">{pageState.page + 1} / {pageState.totalPages}</span>
-            <button className="nav" onClick={() => gridApiRef.current?.paginationGoToNextPage()} disabled={pageState.page >= pageState.totalPages - 1}>›</button>
-          </div>
-        }
+        extra={(() => {
+          const totalPages = Math.max(1, Math.ceil(totalCount / pageState.pageSize));
+          return (
+            <div className="cat-pager">
+              <span className="tot">총 {totalCount.toLocaleString("ko-KR")}건</span>
+              <select
+                value={pageState.pageSize}
+                onChange={(e) => gridApiRef.current?.setGridOption("paginationPageSize", Number(e.target.value))}
+              >
+                {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}개</option>)}
+              </select>
+              <button className="nav" onClick={() => gridApiRef.current?.paginationGoToPreviousPage()} disabled={pageState.page <= 0}>‹</button>
+              <span className="pos">{pageState.page + 1} / {totalPages}</span>
+              <button className="nav" onClick={() => gridApiRef.current?.paginationGoToNextPage()} disabled={pageState.page >= totalPages - 1}>›</button>
+            </div>
+          );
+        })()}
       />
 
       <div className="ag-theme-quartz catalog-grid" style={{ height: 600, cursor: "pointer", marginTop: 14 }}>
