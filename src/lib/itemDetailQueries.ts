@@ -18,7 +18,8 @@ export type LinkedCompany = {
 };
 
 export type CompanyOption = { id: string; code: string; name: string };
-export type SiteOption = { id: string; code: string; name: string };
+export type AccountOption = { account_code: string; account_name: string };
+export type ClassOption = { class_code: string; class_name: string };
 
 /** 활성 법인 목록 (배포 대상 선택) */
 export async function fetchActiveCompanies(): Promise<CompanyOption[]> {
@@ -27,26 +28,38 @@ export async function fetchActiveCompanies(): Promise<CompanyOption[]> {
   });
 }
 
-/** 특정 법인의 활성 사업장 목록 */
-export async function fetchCompanySites(companyId: string): Promise<SiteOption[]> {
-  return rest<SiteOption[]>("GET", "sites", {
-    params: { select: "id,code,name", company_id: `eq.${companyId}`, is_active: "eq.true", order: "name.asc", limit: "500" },
+/** 법인별 품목계정 목록 */
+export async function fetchCompanyAccounts(companyCode: string): Promise<AccountOption[]> {
+  return rest<AccountOption[]>("GET", "erp_item_accounts", {
+    params: { select: "account_code,account_name", company_code: `eq.${companyCode}`, order: "account_code.asc", limit: "1000" },
   });
 }
 
-/** 법인(+사업장/설비) 배포 — A-1 distribute RPC */
+/** 품목클래스 목록 (전역) */
+export async function fetchItemClasses(): Promise<ClassOption[]> {
+  return rest<ClassOption[]>("GET", "erp_item_classes", {
+    params: { select: "class_code,class_name", order: "class_code.asc", limit: "500" },
+  });
+}
+
+/** 법인 배포 (품목계정/클래스 선택 가능, 사업장/설비 미사용) */
 export async function distributeToCompany(args: {
   itemCode: string;
   companyCode: string;
-  siteId?: string | null;
-  equipmentName?: string | null;
+  accountCode?: string | null;
+  classCode?: string | null;
 }): Promise<{ success?: boolean; error?: string; erp_skipped?: boolean; reason?: string }> {
   return rpc("distribute_item_to_company", {
     p_item_code: args.itemCode,
     p_target_company_code: args.companyCode,
-    p_site_id: args.siteId ?? null,
-    p_equipment_name: args.equipmentName ?? null,
+    p_item_account_code: args.accountCode ?? null,
+    p_item_class_code: args.classCode ?? null,
   });
+}
+
+/** 배포 법인 활성/해제 (admin, soft + ERP REVOKE 큐) */
+export async function setItemCompanyActive(itemId: string, companyId: string, active: boolean): Promise<{ success?: boolean; error?: string; no_change?: boolean }> {
+  return rpc("set_item_company_active", { p_item_id: itemId, p_company_id: companyId, p_active: active });
 }
 
 export type AttributeSlot = {

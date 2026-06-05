@@ -1,11 +1,13 @@
 import { Dialog, DialogPanel, Transition, TransitionChild } from "@headlessui/react";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchItemDetail,
   fetchActiveCompanies,
-  fetchCompanySites,
+  fetchCompanyAccounts,
+  fetchItemClasses,
   distributeToCompany,
+  setItemCompanyActive,
   type LinkedCompany,
   type AttributeSlot,
 } from "../../lib/itemDetailQueries";
@@ -42,11 +44,6 @@ function CompanyChip({ c }: { c: LinkedCompany }) {
     >
       <span className="code">{c.code}</span>
       <span>{c.name}</span>
-      {(c.site_name || c.equipment_name) && (
-        <span style={{ color: "var(--c-accent-500)", fontSize: 11 }}>
-          {" · "}{[c.site_name, c.equipment_name].filter(Boolean).join(" / ")}
-        </span>
-      )}
       {off && <span style={{ color: "#9ca3af", fontSize: 11 }}> · OFF</span>}
     </span>
   );
@@ -86,10 +83,10 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
     staleTime: 60_000,
   });
 
-  // ── 법인 추가 배포 (A-1: 법인 + 사업장 + 설비) ──
+  // ── 법인 추가 배포 (법인 + 품목계정 + 품목클래스) ──
   const [dCompanyCode, setDCompanyCode] = useState("");
-  const [dSiteId, setDSiteId] = useState("");
-  const [dEquip, setDEquip] = useState("");
+  const [dAccount, setDAccount] = useState("");
+  const [dClass, setDClass] = useState("");
   const [dMsg, setDMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const companiesQ = useQuery({
@@ -98,15 +95,17 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
     enabled: open && isAdmin,
     staleTime: 300_000,
   });
-  const selectedCompanyId = useMemo(
-    () => companiesQ.data?.find((c) => c.code === dCompanyCode)?.id ?? "",
-    [companiesQ.data, dCompanyCode],
-  );
-  const sitesQ = useQuery({
-    queryKey: ["company-sites", selectedCompanyId],
-    queryFn: () => fetchCompanySites(selectedCompanyId),
-    enabled: open && isAdmin && !!selectedCompanyId,
+  const accountsQ = useQuery({
+    queryKey: ["company-accounts", dCompanyCode],
+    queryFn: () => fetchCompanyAccounts(dCompanyCode),
+    enabled: open && isAdmin && !!dCompanyCode,
     staleTime: 120_000,
+  });
+  const classesQ = useQuery({
+    queryKey: ["item-classes"],
+    queryFn: fetchItemClasses,
+    enabled: open && isAdmin,
+    staleTime: 300_000,
   });
 
   const distributeMut = useMutation({
@@ -114,8 +113,8 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
       distributeToCompany({
         itemCode: item!.item_code,
         companyCode: dCompanyCode,
-        siteId: dSiteId || null,
-        equipmentName: dEquip || null,
+        accountCode: dAccount || null,
+        classCode: dClass || null,
       }),
     onSuccess: (res) => {
       if (res?.error) {
@@ -123,8 +122,20 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
         return;
       }
       setDMsg({ ok: true, text: res?.erp_skipped ? `배포 완료 (${res.reason})` : "배포 완료 — ERP 전송 대기" });
-      setDSiteId("");
-      setDEquip("");
+      setDCompanyCode("");
+      setDAccount("");
+      setDClass("");
+      qc.invalidateQueries({ queryKey: ["item-detail", item?.id] });
+    },
+    onError: (e) => setDMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
+  });
+
+  const toggleActiveMut = useMutation({
+    mutationFn: (v: { companyId: string; active: boolean }) =>
+      setItemCompanyActive(item!.id, v.companyId, v.active),
+    onSuccess: (res) => {
+      if (res?.error) { setDMsg({ ok: false, text: res.error }); return; }
+      setDMsg({ ok: true, text: "배포 상태 변경 완료" });
       qc.invalidateQueries({ queryKey: ["item-detail", item?.id] });
     },
     onError: (e) => setDMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
@@ -299,25 +310,22 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                             <tr style={{ background: "#f1f5f9", color: "#003876" }}>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>코드</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>법인명</th>
-                              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>사업장</th>
-                              <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>설비</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>등록방식</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>등록일</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>품목계정</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>품목클래스</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>재고단위</th>
                               <th style={{ padding: "6px 10px", textAlign: "left", fontWeight: 600 }}>상태</th>
+                              <th style={{ padding: "6px 10px", textAlign: "center", fontWeight: 600 }}>관리</th>
                             </tr>
                           </thead>
                           <tbody>
                             {q.data.linkedCompanies.map((c) => {
                               const off = c.ic_is_active === false || !c.is_active;
                               return (
-                                <tr key={`${c.id}-${c.site_id ?? ""}-${c.equipment_name ?? ""}`} style={{ borderBottom: "1px solid #f1f3f6", color: "#003876" }}>
+                                <tr key={c.id} style={{ borderBottom: "1px solid #f1f3f6", color: "#003876" }}>
                                   <td style={{ padding: "6px 10px", fontFamily: "ui-monospace,monospace", fontWeight: 600 }}>{c.code}</td>
                                   <td style={{ padding: "6px 10px" }}>{c.name}</td>
-                                  <td style={{ padding: "6px 10px" }}>{c.site_name || "—"}</td>
-                                  <td style={{ padding: "6px 10px" }}>{c.equipment_name || "—"}</td>
                                   <td style={{ padding: "6px 10px" }}>
                                     <span className="badge b-blue">{IC_SOURCE_LABEL[c.source ?? ""] ?? c.source ?? "-"}</span>
                                   </td>
@@ -332,6 +340,19 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                                       <span className="badge b-approve">활성</span>
                                     )}
                                   </td>
+                                  <td style={{ padding: "6px 10px", textAlign: "center" }}>
+                                    {isAdmin && (
+                                      off ? (
+                                        <button className="btn-ghost" style={{ padding: "2px 8px", fontSize: 12 }}
+                                          disabled={toggleActiveMut.isPending}
+                                          onClick={() => toggleActiveMut.mutate({ companyId: c.id, active: true })}>복원</button>
+                                      ) : (
+                                        <button className="btn-ghost" style={{ padding: "2px 8px", fontSize: 12, color: "#dc2626" }}
+                                          disabled={toggleActiveMut.isPending}
+                                          onClick={() => { if (window.confirm(`${c.name} 법인 배포를 해제할까요? (ERP REVOKE 큐 생성)`)) toggleActiveMut.mutate({ companyId: c.id, active: false }); }}>해제</button>
+                                      )
+                                    )}
+                                  </td>
                                 </tr>
                               );
                             })}
@@ -344,22 +365,25 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--c-border)" }}>
                           <div className="text-xs" style={{ fontWeight: 600, color: "var(--c-navy-600)", marginBottom: 8 }}>법인 추가 배포</div>
                           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                            <select className="dist-input" value={dCompanyCode} onChange={(e) => { setDCompanyCode(e.target.value); setDSiteId(""); setDMsg(null); }}>
+                            <select className="dist-input" value={dCompanyCode} onChange={(e) => { setDCompanyCode(e.target.value); setDAccount(""); setDMsg(null); }}>
                               <option value="">법인 선택…</option>
                               {(companiesQ.data ?? []).map((c) => <option key={c.id} value={c.code}>[{c.code}] {c.name}</option>)}
                             </select>
-                            <select className="dist-input" value={dSiteId} onChange={(e) => setDSiteId(e.target.value)} disabled={!dCompanyCode}>
-                              <option value="">사업장 (선택)</option>
-                              {(sitesQ.data ?? []).map((s) => <option key={s.id} value={s.id}>[{s.code}] {s.name}</option>)}
+                            <select className="dist-input" value={dAccount} onChange={(e) => setDAccount(e.target.value)} disabled={!dCompanyCode}>
+                              <option value="">품목계정 (기본값)</option>
+                              {(accountsQ.data ?? []).map((a) => <option key={a.account_code} value={a.account_code}>[{a.account_code}] {a.account_name}</option>)}
                             </select>
-                            <input className="dist-input" style={{ width: 160 }} placeholder="설비명 (선택)" value={dEquip} onChange={(e) => setDEquip(e.target.value)} disabled={!dCompanyCode} />
+                            <select className="dist-input" value={dClass} onChange={(e) => setDClass(e.target.value)} disabled={!dCompanyCode}>
+                              <option value="">품목클래스 (기본값)</option>
+                              {(classesQ.data ?? []).map((c) => <option key={c.class_code} value={c.class_code}>[{c.class_code}] {c.class_name}</option>)}
+                            </select>
                             <button className="btn-pri" disabled={!dCompanyCode || distributeMut.isPending} onClick={() => distributeMut.mutate()}>
                               {distributeMut.isPending ? "배포 중…" : "배포"}
                             </button>
                           </div>
                           {dMsg && <div style={{ marginTop: 8, fontSize: 13, color: dMsg.ok ? "#16a34a" : "#dc2626" }}>{dMsg.text}</div>}
                           <div className="text-xs text-gray-500" style={{ marginTop: 6 }}>
-                            사업장·설비는 선택 항목. 법인 <strong>첫 배포만 ERP로 전송</strong>되고, 추가 사업장/설비는 MDM 내부 기록입니다.
+                            품목계정·품목클래스 미선택 시 법인별 기본 매핑이 적용됩니다. 배포 시 해당 법인 ERP로 전송됩니다.
                           </div>
                           <style>{`.dist-input{border:1px solid var(--c-border);border-radius:6px;padding:7px 10px;font-size:var(--app-fs-md);color:var(--c-text);background:#fff;}`}</style>
                         </div>
