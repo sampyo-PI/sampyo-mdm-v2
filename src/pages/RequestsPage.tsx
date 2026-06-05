@@ -159,10 +159,21 @@ export function RequestsPage() {
         </div>
       </div>
 
-      {/* 내 요청 / 전체 요청 — 대시보드 세그먼트 컨트롤과 동일 */}
-      <div className="dash-seg" style={{ marginBottom: 14 }}>
-        <button className={`dash-seg-btn${tab === "my" ? " on" : ""}`} onClick={() => setTab("my")}>내 요청</button>
-        <button className={`dash-seg-btn${tab === "all" ? " on" : ""}`} onClick={() => setTab("all")}>전체 요청</button>
+      {/* 탭(내요청/전체요청) + 검색 + 카운트 — 한 줄 */}
+      <div className="search-row" style={{ marginBottom: 14 }}>
+        <div className="dash-seg">
+          <button className={`dash-seg-btn${tab === "my" ? " on" : ""}`} onClick={() => setTab("my")}>내 요청</button>
+          <button className={`dash-seg-btn${tab === "all" ? " on" : ""}`} onClick={() => setTab("all")}>전체 요청</button>
+        </div>
+        <input
+          type="search"
+          placeholder="요청번호 · 품목명 · 신청자 · 법인 · 사업장 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <span className="count">
+          조회 결과 <b>{filtered.length}</b>건 / 전체 {allRows.length}건
+        </span>
       </div>
       <style>{`
         .dash-seg { display: inline-flex; gap: 6px; background: #f1f5f9; padding: 5px; border-radius: 10px; }
@@ -186,19 +197,6 @@ export function RequestsPage() {
             <div className="stat-val">{s.count}</div>
           </div>
         ))}
-      </div>
-
-      {/* 검색 행 */}
-      <div className="search-row" style={{ marginBottom: 14 }}>
-        <input
-          type="search"
-          placeholder="요청번호 · 품목명 · 신청자 · 법인 · 사업장 검색"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <span className="count">
-          조회 결과 <b>{filtered.length}</b>건 / 전체 {allRows.length}건
-        </span>
       </div>
 
       <div className="section-title">요청 목록 (정렬·필터·리사이즈 · 행 클릭 시 검토 상세)</div>
