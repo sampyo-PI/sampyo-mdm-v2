@@ -88,6 +88,17 @@ export function CatalogPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [selectedItem, setSelectedItem] = useState<ItemRow | null>(null);
   const gridApiRef = useRef<GridApi | null>(null);
+  const [pageState, setPageState] = useState({ page: 0, pageSize: 50, totalPages: 1 });
+
+  const onPaginationChanged = useCallback(() => {
+    const api = gridApiRef.current;
+    if (!api) return;
+    setPageState({
+      page: api.paginationGetCurrentPage(),
+      pageSize: api.paginationGetPageSize(),
+      totalPages: Math.max(1, api.paginationGetTotalPages()),
+    });
+  }, []);
 
   const categoryOptions = useQuery({
     queryKey: ["catalog-category-options"],
@@ -196,6 +207,16 @@ export function CatalogPage() {
         </div>
       </div>
 
+      <style>{`
+        .catalog-grid .ag-paging-panel { display: none; }
+        .cat-pager { display: inline-flex; align-items: center; gap: 6px; font-size: var(--app-fs-sm); color: var(--c-text-sub); }
+        .cat-pager select { border: 1px solid var(--c-border); border-radius: 6px; padding: 5px 8px; font-size: var(--app-fs-sm); color: var(--c-text); }
+        .cat-pager .nav { width: 28px; height: 28px; border: 1px solid var(--c-border); background: #fff; border-radius: 6px; cursor: pointer; color: var(--c-navy-600); font-size: 14px; line-height: 1; }
+        .cat-pager .nav:hover:not(:disabled) { background: #eff6ff; border-color: var(--c-navy-600); }
+        .cat-pager .nav:disabled { opacity: .4; cursor: not-allowed; }
+        .cat-pager .pos { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--c-navy-600); }
+      `}</style>
+
       <CatalogFilters
         filters={filters}
         setFilters={setFilters}
@@ -203,10 +224,22 @@ export function CatalogPage() {
         isOptionsLoading={categoryOptions.isLoading}
         totalCount={totalCount}
         onSearch={() => setAppliedFilters(filters)}
+        extra={
+          <div className="cat-pager">
+            <select
+              value={pageState.pageSize}
+              onChange={(e) => gridApiRef.current?.setGridOption("paginationPageSize", Number(e.target.value))}
+            >
+              {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n}개</option>)}
+            </select>
+            <button className="nav" onClick={() => gridApiRef.current?.paginationGoToPreviousPage()} disabled={pageState.page <= 0}>‹</button>
+            <span className="pos">{pageState.page + 1} / {pageState.totalPages}</span>
+            <button className="nav" onClick={() => gridApiRef.current?.paginationGoToNextPage()} disabled={pageState.page >= pageState.totalPages - 1}>›</button>
+          </div>
+        }
       />
 
-      <div className="section-title">품목 목록 (정렬·필터·리사이즈 · 행 클릭 시 상세)</div>
-      <div className="ag-theme-quartz" style={{ height: 600, cursor: "pointer" }}>
+      <div className="ag-theme-quartz catalog-grid" style={{ height: 600, cursor: "pointer", marginTop: 14 }}>
         <AgGridReact
           columnDefs={columnDefs}
           rowModelType="infinite"
@@ -224,7 +257,8 @@ export function CatalogPage() {
           }}
           pagination
           paginationPageSize={50}
-          paginationPageSizeSelector={[25, 50, 100, 200]}
+          suppressPaginationPanel
+          onPaginationChanged={onPaginationChanged}
           onGridReady={onGridReady}
           onRowClicked={(e) => {
             if (e.data) setSelectedItem(e.data as ItemRow);

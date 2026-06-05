@@ -9,6 +9,7 @@ type Props = {
   isOptionsLoading: boolean;
   totalCount: number;
   onSearch: () => void;
+  extra?: React.ReactNode;
 };
 
 const SOURCE_LABELS: Record<NonNullable<F["source"]>, string> = {
@@ -26,7 +27,7 @@ function labelToSource(label: string | null): F["source"] {
   return null;
 }
 
-export function CatalogFilters({ filters, setFilters, options, isOptionsLoading, totalCount, onSearch }: Props) {
+export function CatalogFilters({ filters, setFilters, options, isOptionsLoading, totalCount, onSearch, extra }: Props) {
   const mediumOptions = useMemo(() => {
     if (!options) return [] as string[];
     if (!filters.large) return options.medium.map((m) => m.name);
@@ -105,9 +106,10 @@ export function CatalogFilters({ filters, setFilters, options, isOptionsLoading,
       >
         초기화
       </button>
-      <button type="button" className="btn-pri" style={{ marginLeft: "auto" }} onClick={onSearch}>
+      <button type="button" className="btn-pri" onClick={onSearch}>
         조회
       </button>
+      {extra && <div style={{ marginLeft: "auto" }}>{extra}</div>}
     </div>
   );
 }
