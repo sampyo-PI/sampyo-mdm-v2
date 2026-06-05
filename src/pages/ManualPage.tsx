@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export function ManualPage() {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr 220px", gap: 22, alignItems: "start" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 22, alignItems: "start" }}>
 
       {/* 좌측 TOC */}
       <nav
@@ -226,23 +226,6 @@ export function ManualPage() {
           </div>
         </div>
       </section>
-
-      {/* 우측 anchor */}
-      <nav className="manual-anchors">
-        <div className="ma-title">이 페이지</div>
-        <a href="#intro">소개</a>
-        <a href="#login">로그인·권한</a>
-        <a href="#reg-flow">신규 등록 흐름</a>
-        <a href="#variant">변형 품목</a>
-        <a href="#ai-review">AI 1차 검토</a>
-        <a href="#review-3step">3단계 검토</a>
-        <a href="#status">상태 흐름</a>
-        <a href="#code-rule">품목코드 규칙</a>
-        <a href="#normalized">표준명</a>
-        <a href="#catalog">카탈로그·배포</a>
-        <a href="#rbac">권한(RBAC)</a>
-        <a href="#troubleshooting">트러블슈팅</a>
-      </nav>
 
     </div>
   );

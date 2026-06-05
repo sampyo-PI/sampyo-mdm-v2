@@ -66,28 +66,28 @@ export function OperationsTab() {
 }
 
 function LineDual({ data }: { data: Daily[] }) {
-  const w = 820, h = 240, pl = 44, pr = 14, pt = 14, pb = 28;
+  const w = 1000, h = 150, pl = 34, pr = 12, pt = 22, pb = 18;
   const n = data.length;
   const max = Math.max(1, ...data.flatMap((d) => [Number(d.created_cnt), Number(d.revoked_cnt)]));
   const x = (i: number) => pl + (n <= 1 ? 0 : (i / (n - 1)) * (w - pl - pr));
   const y = (v: number) => h - pb - (v / max) * (h - pt - pb);
   const path = (key: keyof Daily) => data.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(Number(d[key])).toFixed(1)}`).join(" ");
   const ticks = [0, Math.round(max / 2), max];
-  const labelEvery = Math.max(1, Math.ceil(n / 8));
+  const labelEvery = Math.max(1, Math.ceil(n / 12));
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
+    <svg viewBox={`0 0 ${w} ${h}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block", maxHeight: 200 }}>
       {ticks.map((t, i) => (
         <g key={i}>
           <line x1={pl} y1={y(t)} x2={w - pr} y2={y(t)} stroke="#e2e8f0" strokeDasharray="3 3" />
-          <text x={pl - 6} y={y(t) + 3} textAnchor="end" fontSize="10" fill="#94a3b8">{t}</text>
+          <text x={pl - 5} y={y(t) + 3} textAnchor="end" fontSize="8" fill="#94a3b8">{t}</text>
         </g>
       ))}
-      {data.map((d, i) => i % labelEvery === 0 ? <text key={i} x={x(i)} y={h - 8} textAnchor="middle" fontSize="9" fill="#94a3b8">{d.day.slice(5)}</text> : null)}
-      <path d={path("created_cnt")} fill="none" stroke="var(--c-navy-600)" strokeWidth="2" />
-      <path d={path("revoked_cnt")} fill="none" stroke="#dc2626" strokeWidth="2" />
-      <g transform={`translate(${pl},${pt - 2})`} fontSize="11">
-        <rect width="10" height="3" y="3" fill="var(--c-navy-600)" /><text x="14" y="8" fill="#475569">신규</text>
-        <rect width="10" height="3" y="3" x="56" fill="#dc2626" /><text x="70" y="8" fill="#475569">취소</text>
+      {data.map((d, i) => i % labelEvery === 0 ? <text key={i} x={x(i)} y={h - 5} textAnchor="middle" fontSize="7.5" fill="#94a3b8">{d.day.slice(5)}</text> : null)}
+      <path d={path("created_cnt")} fill="none" stroke="var(--c-navy-600)" strokeWidth="1.5" />
+      <path d={path("revoked_cnt")} fill="none" stroke="#dc2626" strokeWidth="1.5" />
+      <g transform={`translate(${pl},4)`} fontSize="8.5">
+        <rect width="9" height="3" y="2" fill="var(--c-navy-600)" /><text x="13" y="7" fill="#475569">신규</text>
+        <rect width="9" height="3" y="2" x="48" fill="#dc2626" /><text x="61" y="7" fill="#475569">취소</text>
       </g>
     </svg>
   );
