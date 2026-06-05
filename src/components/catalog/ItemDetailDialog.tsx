@@ -11,6 +11,7 @@ import {
   type LinkedCompany,
   type AttributeSlot,
 } from "../../lib/itemDetailQueries";
+import { requestDistribution, fetchMyPendingRequest } from "../../lib/distributionRequests";
 import { asAttrArray, formatYyMm } from "../../lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import type { ItemRow } from "../../lib/catalogQueries";
@@ -74,8 +75,9 @@ function ExtraAttrRow({ name, value }: { name: string; value: string }) {
 }
 
 export function ItemDetailDialog({ item, open, onClose }: Props) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const qc = useQueryClient();
+  const myCompanyId = profile?.company_id ?? null;
   const q = useQuery({
     queryKey: ["item-detail", item?.id],
     queryFn: () => fetchItemDetail(item!),
@@ -137,6 +139,28 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
       if (res?.error) { setDMsg({ ok: false, text: res.error }); return; }
       setDMsg({ ok: true, text: "배포 상태 변경 완료" });
       qc.invalidateQueries({ queryKey: ["item-detail", item?.id] });
+    },
+    onError: (e) => setDMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
+  });
+
+  // ── 비관리자: 우리 법인 배포 요청 ──
+  const myDeployed = !!q.data?.linkedCompanies.some(
+    (c) => c.id === myCompanyId && c.is_active && c.ic_is_active !== false,
+  );
+  const pendingReqQ = useQuery({
+    queryKey: ["my-dist-req", item?.id, myCompanyId],
+    queryFn: () => fetchMyPendingRequest(item!.id, myCompanyId!),
+    enabled: open && !isAdmin && !!item?.id && !!myCompanyId && !!q.data && !myDeployed,
+    staleTime: 30_000,
+  });
+  const [reqNote, setReqNote] = useState("");
+  const requestMut = useMutation({
+    mutationFn: () => requestDistribution(item!.item_code, reqNote || null),
+    onSuccess: (res) => {
+      if (res?.error) { setDMsg({ ok: false, text: res.error }); return; }
+      setDMsg({ ok: true, text: "배포 요청이 접수되었습니다 (검토 대기)" });
+      setReqNote("");
+      qc.invalidateQueries({ queryKey: ["my-dist-req", item?.id, myCompanyId] });
     },
     onError: (e) => setDMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
   });
@@ -386,6 +410,26 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                             품목계정·품목클래스 미선택 시 법인별 기본 매핑이 적용됩니다. 배포 시 해당 법인 ERP로 전송됩니다.
                           </div>
                           <style>{`.dist-input{border:1px solid var(--c-border);border-radius:6px;padding:7px 10px;font-size:var(--app-fs-md);color:var(--c-text);background:#fff;}`}</style>
+                        </div>
+                      )}
+
+                      {/* 비관리자: 우리 법인 배포 요청 */}
+                      {!isAdmin && myCompanyId && q.data && !myDeployed && (
+                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--c-border)" }}>
+                          <div className="text-xs" style={{ fontWeight: 600, color: "var(--c-navy-600)", marginBottom: 8 }}>우리 법인 배포</div>
+                          {pendingReqQ.data ? (
+                            <span className="badge b-warn">요청됨 · 검토 중</span>
+                          ) : (
+                            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                              <input style={{ flex: 1, minWidth: 200, border: "1px solid var(--c-border)", borderRadius: 6, padding: "7px 10px", fontSize: "var(--app-fs-md)" }}
+                                placeholder="요청 사유 (선택)" value={reqNote} onChange={(e) => setReqNote(e.target.value)} />
+                              <button className="btn-pri" disabled={requestMut.isPending} onClick={() => requestMut.mutate()}>
+                                {requestMut.isPending ? "요청 중…" : "우리 법인 배포 요청"}
+                              </button>
+                            </div>
+                          )}
+                          {dMsg && <div style={{ marginTop: 8, fontSize: 13, color: dMsg.ok ? "#16a34a" : "#dc2626" }}>{dMsg.text}</div>}
+                          <div className="text-xs text-gray-500" style={{ marginTop: 6 }}>관리자 또는 해당 법인 3차 검토자가 승인하면 배포됩니다.</div>
                         </div>
                       )}
                     </div>

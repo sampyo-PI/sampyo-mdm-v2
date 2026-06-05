@@ -6,6 +6,7 @@ import type { SidebarItem } from "./components/layout/Sidebar";
 
 // AG-Grid가 들어간 페이지들은 별도 청크로 → 첫 페이지가 비-그리드일 때 1.1MB 절약
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
+const DistributionRequestsPage = lazy(() => import("./pages/DistributionRequestsPage").then((m) => ({ default: m.DistributionRequestsPage })));
 const ListPage = lazy(() => import("./pages/ListPage").then((m) => ({ default: m.ListPage })));
 const CatalogPage = lazy(() => import("./pages/CatalogPage").then((m) => ({ default: m.CatalogPage })));
 const RequestsPage = lazy(() => import("./pages/RequestsPage").then((m) => ({ default: m.RequestsPage })));
@@ -47,6 +48,7 @@ export const routes: RouteObject[] = [
   { path: "/request", element: withSuspense(<ItemRequestPage />) },
   { path: "/request/new", element: withSuspense(<ItemRequestPage />) },
   { path: "/requests", element: withSuspense(<RequestsPage />) },
+  { path: "/distribution-requests", element: withSuspense(<DistributionRequestsPage />) },
   { path: "/approval/:id", element: withSuspense(<ApprovalDetailPage />) },
 
   // 품목마스터
@@ -105,6 +107,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     children: [
       { label: "신규 등록", path: "/request/new" },
       { label: "요청목록", path: "/requests" },
+      { label: "배포 요청 관리", path: "/distribution-requests" },
     ],
   },
   {
