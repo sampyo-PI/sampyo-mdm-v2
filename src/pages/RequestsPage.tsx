@@ -159,6 +159,18 @@ export function RequestsPage() {
         </div>
       </div>
 
+      {/* 내 요청 / 전체 요청 — 대시보드 세그먼트 컨트롤과 동일 */}
+      <div className="dash-seg" style={{ marginBottom: 14 }}>
+        <button className={`dash-seg-btn${tab === "my" ? " on" : ""}`} onClick={() => setTab("my")}>내 요청</button>
+        <button className={`dash-seg-btn${tab === "all" ? " on" : ""}`} onClick={() => setTab("all")}>전체 요청</button>
+      </div>
+      <style>{`
+        .dash-seg { display: inline-flex; gap: 6px; background: #f1f5f9; padding: 5px; border-radius: 10px; }
+        .dash-seg-btn { padding: 9px 22px; border: none; background: transparent; color: var(--c-text-sub); font-size: var(--app-fs-md); font-weight: 600; border-radius: 7px; cursor: pointer; transition: all .12s; }
+        .dash-seg-btn:hover { color: var(--c-navy-600); }
+        .dash-seg-btn.on { background: var(--c-navy-600); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.18); }
+      `}</style>
+
       {/* Stats 5 카드 */}
       <div className="stats-grid" style={{ marginBottom: 14 }}>
         {statCards.map((s) => (
@@ -176,12 +188,8 @@ export function RequestsPage() {
         ))}
       </div>
 
-      {/* 검색 행 (탭 인라인) */}
+      {/* 검색 행 */}
       <div className="search-row" style={{ marginBottom: 14 }}>
-        <div className="tab-inline">
-          <button className={tab === "my" ? "active" : ""} onClick={() => setTab("my")}>내 요청</button>
-          <button className={tab === "all" ? "active" : ""} onClick={() => setTab("all")}>전체 요청</button>
-        </div>
         <input
           type="search"
           placeholder="요청번호 · 품목명 · 신청자 · 법인 · 사업장 검색"
