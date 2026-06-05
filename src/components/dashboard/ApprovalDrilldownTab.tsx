@@ -85,10 +85,10 @@ export function ApprovalDrilldownTab() {
       <style>{STYLES}</style>
       <div className="dd-buckets">
         {STATUS_BUCKETS.map((b) => (
-          <button key={b.key} className={`dd-bucket${selectedBucket === b.key ? " sel" : ""}`} onClick={() => { setSelectedBucket(b.key); setSelectedCompany(null); }}>
-            <span className="num" style={{ color: b.color }}>{isLoading ? "…" : bucketTotals[b.key] ?? 0}</span>
-            <span className="lbl">{b.label}</span>
+          <button key={b.key} className={`kpi accent dd-bucket${selectedBucket === b.key ? " sel" : ""}`} onClick={() => { setSelectedBucket(b.key); setSelectedCompany(null); }}>
             <span className="dot" style={{ background: b.color }} />
+            <div className="val">{isLoading ? "…" : bucketTotals[b.key] ?? 0}</div>
+            <div className="label">{b.label}</div>
           </button>
         ))}
       </div>
@@ -137,28 +137,27 @@ export function ApprovalDrilldownTab() {
 
 const STYLES = `
 .dd-buckets { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 16px; }
-.dd-bucket { position: relative; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 12px; cursor: pointer; text-align: left; transition: all .12s; }
+.dd-bucket { position: relative; cursor: pointer; text-align: left; transition: box-shadow .12s, border-color .12s; }
 .dd-bucket:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-.dd-bucket.sel { border-color: #003876; box-shadow: 0 0 0 2px rgba(0,56,118,0.15); }
-.dd-bucket .num { display: block; font-size: 24px; font-weight: 700; line-height: 1.1; }
-.dd-bucket .lbl { display: block; font-size: 12px; color: #64748b; margin-top: 4px; }
+.dd-bucket.sel { border-color: var(--c-navy-600); box-shadow: 0 0 0 2px rgba(0,56,118,0.15); }
+.dd-bucket .val { font-size: var(--app-fs-kpi); }
+.dd-bucket .label { margin-top: 4px; }
 .dd-bucket .dot { position: absolute; top: 12px; right: 12px; width: 8px; height: 8px; border-radius: 999px; }
 @media (max-width: 1100px) { .dd-buckets { grid-template-columns: repeat(3, 1fr); } }
 .dd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 900px) { .dd-grid { grid-template-columns: 1fr; } }
-.dd-card { background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; }
-.dd-h { font-size: 14px; font-weight: 700; color: #003876; margin-bottom: 10px; }
+.dd-card { background: #fff; border: 1px solid var(--c-border); border-radius: 10px; padding: 14px 16px; }
+.dd-h { font-size: var(--app-fs-md); font-weight: 700; color: var(--c-navy-600); margin-bottom: 10px; }
 .dd-list { max-height: 380px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-.dd-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; font-size: 14px; color: #1f2937; background: none; border: none; cursor: pointer; text-align: left; width: 100%; }
-.dd-row:hover { background: #f8fafc; }
-.dd-row.sel { background: #eff6ff; box-shadow: inset 0 0 0 1px #bfdbfe; }
-.dd-row.static { cursor: default; }
-.dd-row.static:hover { background: #f8fafc; }
-.dd-code { font-family: ui-monospace, monospace; font-size: 11px; font-weight: 700; color: #003876; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 6px; }
-.dd-cnt { font-weight: 700; color: #003876; }
-.dd-empty { padding: 32px 10px; text-align: center; color: #94a3b8; font-size: 13px; }
-.dd-toggle { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
-.dd-toggle button { padding: 4px 10px; font-size: 12px; border: none; background: #fff; color: #64748b; cursor: pointer; }
-.dd-toggle button.on { background: #003876; color: #fff; }
-.t-meta { font-size: 12px; color: #64748b; font-weight: 500; }
+.dd-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; font-size: var(--app-fs-md); color: var(--c-text); background: none; border: none; cursor: pointer; text-align: left; width: 100%; }
+.dd-row:hover { background: #f1f5f9; }
+.dd-row.sel { background: #eef4fb; box-shadow: inset 0 0 0 1px var(--c-accent-500); }
+.dd-row.static, .dd-row.static:hover { cursor: default; background: none; }
+.dd-code { font-family: ui-monospace, monospace; font-size: var(--app-fs-sm); font-weight: 700; color: var(--c-navy-600); background: #f1f5f9; border: 1px solid var(--c-border); border-radius: 4px; padding: 1px 6px; }
+.dd-cnt { font-weight: 700; color: var(--c-navy-600); }
+.dd-empty { padding: 32px 10px; text-align: center; color: var(--c-text-sub); font-size: var(--app-fs-sm); }
+.dd-toggle { display: inline-flex; border: 1px solid var(--c-border); border-radius: 6px; overflow: hidden; }
+.dd-toggle button { padding: 4px 10px; font-size: var(--app-fs-sm); border: none; background: #fff; color: var(--c-text-sub); cursor: pointer; }
+.dd-toggle button.on { background: var(--c-navy-600); color: #fff; }
+.t-meta { font-size: var(--app-fs-sm); color: var(--c-text-sub); font-weight: 500; }
 `;

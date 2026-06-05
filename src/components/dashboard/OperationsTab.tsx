@@ -37,9 +37,9 @@ export function OperationsTab() {
       <style>{STYLES}</style>
       <div className="op-top">
         <div className="op-cards">
-          <div className="op-stat"><div className="ic" style={{ background: "#eff6ff", color: "#003876" }}>▦</div><div><div className="num">{l2 ? "…" : totalItems.toLocaleString()}</div><div className="lbl">활성 품목 총계</div></div></div>
-          <div className="op-stat"><div className="ic" style={{ background: "#dcfce7", color: "#16a34a" }}>↑</div><div><div className="num" style={{ color: "#16a34a" }}>{l1 ? "…" : `+${totalCreated.toLocaleString()}`}</div><div className="lbl">기간 내 신규</div></div></div>
-          <div className="op-stat"><div className="ic" style={{ background: "#fee2e2", color: "#dc2626" }}>↓</div><div><div className="num" style={{ color: "#dc2626" }}>{l1 ? "…" : `-${totalRevoked.toLocaleString()}`}</div><div className="lbl">기간 내 취소</div></div></div>
+          <div className="kpi accent"><div className="label">활성 품목 총계</div><div className="val">{l2 ? "…" : totalItems.toLocaleString()}</div></div>
+          <div className="kpi accent"><div className="label">기간 내 신규</div><div className="val">{l1 ? "…" : totalCreated.toLocaleString()}</div><div className="delta" style={{ color: "#16a34a" }}>▲ 신규 등록</div></div>
+          <div className="kpi accent"><div className="label">기간 내 취소</div><div className="val">{l1 ? "…" : totalRevoked.toLocaleString()}</div><div className="delta" style={{ color: "#dc2626" }}>▼ 취소</div></div>
         </div>
         <select value={period} onChange={(e) => setPeriod(e.target.value)} className="op-period">
           {PERIODS.map((p) => <option key={p.v} value={p.v}>{p.l}</option>)}
@@ -83,11 +83,11 @@ function LineDual({ data }: { data: Daily[] }) {
         </g>
       ))}
       {data.map((d, i) => i % labelEvery === 0 ? <text key={i} x={x(i)} y={h - 8} textAnchor="middle" fontSize="9" fill="#94a3b8">{d.day.slice(5)}</text> : null)}
-      <path d={path("created_cnt")} fill="none" stroke="#16a34a" strokeWidth="2" />
-      <path d={path("revoked_cnt")} fill="none" stroke="#ef4444" strokeWidth="2" />
+      <path d={path("created_cnt")} fill="none" stroke="var(--c-navy-600)" strokeWidth="2" />
+      <path d={path("revoked_cnt")} fill="none" stroke="#dc2626" strokeWidth="2" />
       <g transform={`translate(${pl},${pt - 2})`} fontSize="11">
-        <rect width="10" height="3" y="3" fill="#16a34a" /><text x="14" y="8" fill="#475569">신규</text>
-        <rect width="10" height="3" y="3" x="56" fill="#ef4444" /><text x="70" y="8" fill="#475569">취소</text>
+        <rect width="10" height="3" y="3" fill="var(--c-navy-600)" /><text x="14" y="8" fill="#475569">신규</text>
+        <rect width="10" height="3" y="3" x="56" fill="#dc2626" /><text x="70" y="8" fill="#475569">취소</text>
       </g>
     </svg>
   );
@@ -109,16 +109,16 @@ function Donut({ data }: { data: { label: string; value: number }[] }) {
     <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
       <svg viewBox="0 0 220 220" width="200" height="200" style={{ flexShrink: 0 }}>
         {arcs.map((a, i) => <path key={i} d={a.path} fill={a.color} />)}
-        <text x="110" y="106" textAnchor="middle" fontSize="13" fill="#64748b">총계</text>
-        <text x="110" y="126" textAnchor="middle" fontSize="18" fontWeight="700" fill="#003876">{total.toLocaleString()}</text>
+        <text x="110" y="106" textAnchor="middle" fontSize="13" fill="var(--c-text-sub)">총계</text>
+        <text x="110" y="126" textAnchor="middle" fontSize="18" fontWeight="700" fill="var(--c-navy-600)">{total.toLocaleString()}</text>
       </svg>
       <div style={{ flex: 1, minWidth: 180, display: "flex", flexDirection: "column", gap: 3, maxHeight: 220, overflowY: "auto" }}>
         {arcs.map((a, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
             <span style={{ width: 10, height: 10, borderRadius: 2, background: a.color, flexShrink: 0 }} />
-            <span style={{ flex: 1, color: "#334155", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.label}</span>
-            <span style={{ fontWeight: 600, color: "#003876" }}>{a.value.toLocaleString()}</span>
-            <span style={{ color: "#94a3b8", width: 38, textAlign: "right" }}>{Math.round((a.value / total) * 100)}%</span>
+            <span style={{ flex: 1, color: "var(--c-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.label}</span>
+            <span style={{ fontWeight: 600, color: "var(--c-navy-600)" }}>{a.value.toLocaleString()}</span>
+            <span style={{ color: "var(--c-text-sub)", width: 38, textAlign: "right" }}>{Math.round((a.value / total) * 100)}%</span>
           </div>
         ))}
       </div>
@@ -132,11 +132,11 @@ function HBar({ data }: { data: { label: string; value: number }[] }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
       {data.map((d, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-          <span style={{ width: 54, color: "#475569", fontFamily: "ui-monospace, monospace", fontWeight: 600, flexShrink: 0 }}>{d.label}</span>
+          <span style={{ width: 54, color: "var(--c-text-sub)", fontFamily: "ui-monospace, monospace", fontWeight: 600, flexShrink: 0 }}>{d.label}</span>
           <div style={{ flex: 1, background: "#f1f5f9", borderRadius: 4, height: 16, overflow: "hidden" }}>
-            <div style={{ width: `${(d.value / max) * 100}%`, height: "100%", background: "linear-gradient(90deg,#003876,#1a6bb5)" }} />
+            <div style={{ width: `${(d.value / max) * 100}%`, height: "100%", background: "linear-gradient(90deg,var(--c-navy-600),var(--c-accent-500))" }} />
           </div>
-          <span style={{ width: 64, textAlign: "right", fontWeight: 600, color: "#003876" }}>{d.value.toLocaleString()}</span>
+          <span style={{ width: 64, textAlign: "right", fontWeight: 600, color: "var(--c-navy-600)" }}>{d.value.toLocaleString()}</span>
         </div>
       ))}
     </div>
@@ -146,14 +146,11 @@ function HBar({ data }: { data: { label: string; value: number }[] }) {
 const STYLES = `
 .op-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
 .op-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex: 1; max-width: 640px; }
-.op-stat { background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
-.op-stat .ic { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-.op-stat .num { font-size: 22px; font-weight: 700; color: #003876; line-height: 1.1; }
-.op-stat .lbl { font-size: 12px; color: #64748b; margin-top: 2px; }
-.op-period { border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 10px; font-size: 14px; color: #1f2937; height: fit-content; }
-.op-card { background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
-.op-h { font-size: 14px; font-weight: 700; color: #003876; margin-bottom: 12px; }
+.op-cards .kpi .delta { font-size: var(--app-fs-sm); font-weight: 600; margin-top: 4px; }
+.op-period { border: 1px solid var(--c-border); border-radius: 6px; padding: 8px 10px; font-size: var(--app-fs-md); color: var(--c-text); height: fit-content; }
+.op-card { background: #fff; border: 1px solid var(--c-border); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.op-h { font-size: var(--app-fs-md); font-weight: 700; color: var(--c-navy-600); margin-bottom: 12px; }
 .op-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 900px) { .op-grid2 { grid-template-columns: 1fr; } .op-cards { grid-template-columns: 1fr; } }
-.op-empty { padding: 40px 10px; text-align: center; color: #94a3b8; font-size: 13px; }
+.op-empty { padding: 40px 10px; text-align: center; color: var(--c-text-sub); font-size: var(--app-fs-sm); }
 `;
