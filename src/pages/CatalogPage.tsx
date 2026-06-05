@@ -205,16 +205,8 @@ export function CatalogPage() {
         onSearch={() => setAppliedFilters(filters)}
       />
 
-      <style>{`
-        .catalog-grid .ag-paging-panel::before {
-          content: "품목 목록 · 정렬·필터·리사이즈 · 행 클릭 시 상세";
-          margin-right: auto;
-          color: var(--c-text-sub);
-          font-size: var(--app-fs-sm);
-          font-weight: 500;
-        }
-      `}</style>
-      <div className="ag-theme-quartz catalog-grid" style={{ height: 600, cursor: "pointer" }}>
+      <div className="section-title">품목 목록 (정렬·필터·리사이즈 · 행 클릭 시 상세)</div>
+      <div className="ag-theme-quartz" style={{ height: 600, cursor: "pointer" }}>
         <AgGridReact
           columnDefs={columnDefs}
           rowModelType="infinite"
