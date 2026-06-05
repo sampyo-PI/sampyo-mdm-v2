@@ -231,7 +231,7 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                   <button className="btn-ghost" title="QR 인쇄" disabled>🔗 QR</button>
                   <button className="btn-ghost" title="변경 이력" disabled>📜 이력</button>
                   <button className="btn-sec" disabled>변형 등록</button>
-                  <button className="btn-pri" disabled>✏ 수정</button>
+                  {isAdmin && <button className="btn-pri" disabled>✏ 수정</button>}
                   <button className="close" onClick={onClose} title="닫기 (Esc)" aria-label="닫기">
                     ×
                   </button>
@@ -479,11 +479,13 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
 
               {/* ── 모달 푸터 ── */}
               <div className="modal-f">
-                <button className="btn-danger" style={{ marginRight: "auto" }} disabled>
-                  ⊘ 폐기 (REVOKE)
-                </button>
-                <button className="btn-sec" onClick={onClose}>닫기</button>
-                <button className="btn-pri" disabled>✏ 수정으로 이동</button>
+                {isAdmin && (
+                  <button className="btn-danger" style={{ marginRight: "auto" }} disabled>
+                    ⊘ 폐기 (REVOKE)
+                  </button>
+                )}
+                <button className="btn-sec" onClick={onClose} style={!isAdmin ? { marginLeft: "auto" } : undefined}>닫기</button>
+                {isAdmin && <button className="btn-pri" disabled>✏ 수정으로 이동</button>}
               </div>
             </DialogPanel>
             </TransitionChild>
