@@ -479,12 +479,7 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
 
               {/* ── 모달 푸터 ── */}
               <div className="modal-f">
-                {isAdmin && (
-                  <button className="btn-danger" style={{ marginRight: "auto" }} disabled>
-                    ⊘ 폐기 (REVOKE)
-                  </button>
-                )}
-                <button className="btn-sec" onClick={onClose} style={!isAdmin ? { marginLeft: "auto" } : undefined}>닫기</button>
+                <button className="btn-sec" onClick={onClose} style={{ marginLeft: "auto" }}>닫기</button>
                 {isAdmin && <button className="btn-pri" disabled>✏ 수정으로 이동</button>}
               </div>
             </DialogPanel>
