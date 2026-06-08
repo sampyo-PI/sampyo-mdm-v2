@@ -9,6 +9,8 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ 
 const DistributionRequestsPage = lazy(() => import("./pages/DistributionRequestsPage").then((m) => ({ default: m.DistributionRequestsPage })));
 const ListPage = lazy(() => import("./pages/ListPage").then((m) => ({ default: m.ListPage })));
 const CatalogPage = lazy(() => import("./pages/CatalogPage").then((m) => ({ default: m.CatalogPage })));
+const CatalogV2Page = lazy(() => import("./pages/CatalogV2Page").then((m) => ({ default: m.CatalogV2Page })));
+const Cat2RegisterPage = lazy(() => import("./pages/Cat2RegisterPage").then((m) => ({ default: m.Cat2RegisterPage })));
 const RequestsPage = lazy(() => import("./pages/RequestsPage").then((m) => ({ default: m.RequestsPage })));
 const ApprovalDetailPage = lazy(() => import("./pages/ApprovalDetailPage").then((m) => ({ default: m.ApprovalDetailPage })));
 const ItemRequestPage = lazy(() => import("./pages/ItemRequestPage").then((m) => ({ default: m.ItemRequestPage })));
@@ -47,12 +49,14 @@ export const routes: RouteObject[] = [
   // 품목등록 그룹
   { path: "/request", element: withSuspense(<ItemRequestPage />) },
   { path: "/request/new", element: withSuspense(<ItemRequestPage />) },
+  { path: "/request-std", element: withSuspense(<Cat2RegisterPage />) },
   { path: "/requests", element: withSuspense(<RequestsPage />) },
   { path: "/distribution-requests", element: withSuspense(<DistributionRequestsPage />) },
   { path: "/approval/:id", element: withSuspense(<ApprovalDetailPage />) },
 
   // 품목마스터
   { path: "/catalog", element: withSuspense(<CatalogPage />) },
+  { path: "/catalog-std", element: withSuspense(<CatalogV2Page />) },
   { path: "/catalog/upload", element: withSuspense(<CatalogUploadPage />) },
 
   // 분류관리
@@ -106,6 +110,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "request",
     children: [
       { label: "신규 등록", path: "/request/new" },
+      { label: "표준 등록 + 중복검사", path: "/request-std" },
       { label: "요청목록", path: "/requests" },
       { label: "배포 요청 관리", path: "/distribution-requests" },
     ],
@@ -115,6 +120,7 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "master",
     children: [
       { label: "품목 카탈로그", path: "/catalog" },
+      { label: "표준 카탈로그 (신규)", path: "/catalog-std" },
       { label: "데이터 업로드", path: "/catalog/upload", adminOnly: true },
     ],
   },
