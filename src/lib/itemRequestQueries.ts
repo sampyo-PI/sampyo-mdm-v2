@@ -292,6 +292,7 @@ export async function submitRequest(input: SubmitInput): Promise<SubmitResult> {
         normalized_name: normalizedName,
         large_category: input.largeCategory,
         medium_category: input.mediumCategory,
+        small_category: input.smallCategoryName,  // 누락 시 AI 1차 C6 거부(분류 미지정) — 반드시 저장
         attributes: input.attributes,
         version: input.version + 1,
       },
