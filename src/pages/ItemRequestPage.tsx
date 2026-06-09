@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   callAnalyzeItem,
@@ -45,10 +45,13 @@ const INIT: FormState = {
 
 export function ItemRequestPage() {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id?: string }>(); // /request/edit/:id 편집 모드
   const queryClient = useQueryClient();
   const { user, profile } = useAuth();
   const [form, setForm] = useState<FormState>(INIT);
   const [draftId, setDraftId] = useState<string | null>(null);
+  const [editLoaded, setEditLoaded] = useState(false); // 편집 대상 로드 1회 가드
+  const [editRequestNumber, setEditRequestNumber] = useState<string | null>(null);
   const [ai, setAi] = useState<AIAnalysisResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -123,16 +126,61 @@ export function ItemRequestPage() {
     [mastersQuery.data],
   );
 
-  // 본인 DRAFT 5건 — 진입 시 상단 카드로 노출
+  // 본인 DRAFT 5건 — 진입 시 상단 카드로 노출 (편집 모드에선 숨김)
   const draftsQuery = useQuery({
     queryKey: ["my-drafts", user?.id],
     queryFn: () => fetchMyDrafts(user!.id),
-    enabled: !!user && !draftId,
+    enabled: !!user && !draftId && !editId,
     staleTime: 10_000,
   });
 
-  // 본인 법인 자동 default
-  if (profile?.company_id && !form.companyId && !draftId) {
+  // 편집 모드 (/request/edit/:id) — 기존 신청 로드 → 폼 채움 (v1 동등 가드: 본인 + APPROVED/REJECTED 불가 + version 낙관적 잠금)
+  useEffect(() => {
+    if (!editId || editLoaded || !user || !mastersQuery.data) return;
+    let cancelled = false;
+    (async () => {
+      const { rest } = await import("../lib/supabase");
+      type Row = {
+        id: string; request_number: string; status: string; requester_id: string; version: number | null;
+        item_name: string; maker: string | null; model: string | null;
+        company_id: string | null; site_id: string | null; equipment_name: string | null;
+        unit: string | null; spec: string | null; notes: string | null;
+        image_urls: string[] | null; document_urls: string[] | null;
+      };
+      let arr: Row[];
+      try {
+        arr = await rest<Row[]>("GET", "item_requests", {
+          params: {
+            id: `eq.${editId}`, limit: "1",
+            select: "id,request_number,status,requester_id,version,item_name,maker,model,company_id,site_id,equipment_name,unit,spec,notes,image_urls,document_urls",
+          },
+        });
+      } catch (e) { alert("요청 조회 실패: " + (e as Error).message); navigate("/requests"); return; }
+      if (cancelled) return;
+      const r = arr?.[0];
+      if (!r) { alert("수정할 요청을 찾을 수 없습니다."); navigate("/requests"); return; }
+      if (r.status === "APPROVED" || r.status === "REJECTED") { alert("승인 또는 반려된 요청은 수정할 수 없습니다."); navigate("/requests"); return; }
+      if (r.requester_id !== user.id) { alert("본인이 신청한 요청만 수정할 수 있습니다."); navigate("/requests"); return; }
+      setExistingImages(Array.isArray(r.image_urls) ? r.image_urls : []);
+      setExistingDocs(Array.isArray(r.document_urls) ? r.document_urls : []);
+      setNewImages([]); setNewDocs([]);
+      const m = mastersQuery.data!.makers.find((x) => x.name === r.maker);
+      setDraftId(r.id);
+      setDraftVersion(r.version ?? 1);
+      setEditRequestNumber(r.request_number);
+      setForm({
+        itemName: r.item_name, makerId: m?.id ?? null, makerName: r.maker ?? "",
+        model: r.model ?? "", companyId: r.company_id, siteId: r.site_id,
+        equipmentName: r.equipment_name ?? "", unit: r.unit ?? "", spec: r.spec ?? "", notes: r.notes ?? "",
+      });
+      setAi(null);
+      setEditLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [editId, editLoaded, user, mastersQuery.data, navigate]);
+
+  // 본인 법인 자동 default (편집 모드 제외 — 로드값 우선)
+  if (profile?.company_id && !form.companyId && !draftId && !editId) {
     // 첫 진입 시에만 한 번 (controlled state 변경 충돌 회피 위해 effect 대신 ref 대신 set 한 번)
     setForm((prev) => prev.companyId ? prev : { ...prev, companyId: profile.company_id });
   }
@@ -354,11 +402,15 @@ export function ItemRequestPage() {
       <div className="page-h">
         <div>
           <h1>
-            품목마스터 ▸ 품목등록
-            <span className="text-xs text-gray-500 font-normal ml-2">/ request</span>
+            품목마스터 ▸ {editId ? "신청 수정" : "품목등록"}
+            <span className="text-xs text-gray-500 font-normal ml-2">/ {editId ? "request/edit" : "request"}</span>
           </h1>
           <div className="meta">
-            신규 품목코드 신청 · AI 분석으로 분류·속성·표준명 자동 추출 · 필수 항목 <span style={{ color: "#dc2626" }}>*</span>
+            {editId ? (
+              <>기존 신청 <span style={{ fontFamily: "ui-monospace, monospace", color: "#003876", fontWeight: 600 }}>{editRequestNumber ?? "…"}</span> 수정 · 저장 시 임시저장(DRAFT) 갱신, 제출 시 1차 검토 재진행</>
+            ) : (
+              <>신규 품목코드 신청 · AI 분석으로 분류·속성·표준명 자동 추출 · 필수 항목 <span style={{ color: "#dc2626" }}>*</span></>
+            )}
           </div>
         </div>
       </div>

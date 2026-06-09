@@ -65,8 +65,11 @@
 - **cat2 페이지(catalog-std/request-std) 은퇴** or items 일원화
 - **품목명 관리(include-in-name) 은퇴** (Path B)
 
-### C. 🔴 누락 페이지 (사용자 결정 후 구현/흡수/폐기)
-- `/request/edit/:id` 편집 / `/item/list` / `/item/:id` 직접페이지 / `/erp/lookup`
+### C. ✅ 누락 페이지 결정·처리 (6-9 완료·배포·검증)
+- `/request/edit/:id` → **편집 모드 구현**: ItemRequestPage에 editId 분기(`useParams`). 기존 신청 로드→폼 채움. v1 동등 가드(본인 + APPROVED/REJECTED 불가 + version 낙관적 잠금). RequestsPage "수정" 버튼 연결(canEdit 행). 검증 통과
+- `/item/list` → **폐기**(카탈로그가 커버, v2 부재 확인)
+- `/item/:id` `/item/search` → **모달 흡수**: `/item/:id`→`/catalog?item=값` 리다이렉트 + CatalogPage가 param 읽어 단일 fetch→ItemDetailDialog 자동 오픈(id/item_code/display/legacy_code 매칭). 검증 통과
+- `/erp/lookup` → **폐기**(DistributionMonitorPage가 커버, v2 부재 확인)
 
 ### D. 컷오버 인프라 (서버/VPN)
 - [ ] Vite `base:'/v2/'`→`'/'` + React Router basename 제거 + 재빌드
@@ -77,8 +80,8 @@
 ## 4. 권장 우선순위
 1. ~~**B(정합)**~~ ✅ 완료 (6-9)
 2. ~~**A(CRUD 활성)**~~ ✅ 완료 (6-9) — 단위→제조사→속성→분류체계→매핑 5페이지 배포·검증
-3. **C 누락페이지 결정** ← **다음** (request/edit·item/list·item/:id·erp/lookup 살릴지/흡수/폐기)
-4. **D 인프라** (base'/'·OAuth·nginx) — 마지막 컷오버
+3. ~~**C 누락페이지 결정**~~ ✅ 완료 (6-9) — edit 살림 / item-list·erp-lookup 폐기 / item/:id 모달 흡수
+4. **D 인프라** (base'/'·OAuth·nginx) ← **다음·마지막 컷오버** (운영 전환, 사용자 협의·일정 필요)
 
 > **⚠️ nginx `/v2/` location 반복 소실**: 메인 `mdm.sampyo.co.kr` config의 `location ^~ /v2/` 블록이 또 사라짐(6-9). 복구 스크립트 `scripts/_add_mdm_v2_location.cjs` **재생성**(멱등 + nginx -t 검증 + 실패 시 백업 복원). 배포 후 `/v2/` 404 시 이 스크립트 실행.
 

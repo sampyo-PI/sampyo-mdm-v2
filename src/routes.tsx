@@ -1,8 +1,14 @@
-import { type RouteObject } from "react-router-dom";
+import { type RouteObject, Navigate, useParams } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { ConnectionTestPage } from "./pages/ConnectionTestPage";
 import { LoginPage } from "./pages/LoginPage";
 import type { SidebarItem } from "./components/layout/Sidebar";
+
+// /item/:id 딥링크 → 카탈로그 + 상세 모달 자동 오픈 (v1 ItemDetail 페이지 흡수)
+function ItemDeepLinkRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={id ? `/catalog?item=${encodeURIComponent(id)}` : "/catalog"} replace />;
+}
 
 // AG-Grid가 들어간 페이지들은 별도 청크로 → 첫 페이지가 비-그리드일 때 1.1MB 절약
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
@@ -49,6 +55,7 @@ export const routes: RouteObject[] = [
   // 품목등록 그룹
   { path: "/request", element: withSuspense(<ItemRequestPage />) },
   { path: "/request/new", element: withSuspense(<ItemRequestPage />) },
+  { path: "/request/edit/:id", element: withSuspense(<ItemRequestPage />) },
   { path: "/request-std", element: withSuspense(<Cat2RegisterPage />) },
   { path: "/requests", element: withSuspense(<RequestsPage />) },
   { path: "/distribution-requests", element: withSuspense(<DistributionRequestsPage />) },
@@ -58,6 +65,9 @@ export const routes: RouteObject[] = [
   { path: "/catalog", element: withSuspense(<CatalogPage />) },
   { path: "/catalog-std", element: withSuspense(<CatalogV2Page />) },
   { path: "/catalog/upload", element: withSuspense(<CatalogUploadPage />) },
+  // v1 품목 상세/검색 흡수 (모달로 일원화) — 딥링크 404 방지
+  { path: "/item/:id", element: <ItemDeepLinkRedirect /> },
+  { path: "/item/search", element: <Navigate to="/catalog" replace /> },
 
   // 분류관리
   { path: "/classification/tree", element: withSuspense(<ClassificationTreePage />) },

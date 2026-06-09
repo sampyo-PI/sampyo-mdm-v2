@@ -10,6 +10,8 @@ import {
   type ICellRendererParams,
 } from "ag-grid-community";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { rest } from "../lib/supabase";
 import { CatalogFilters } from "../components/catalog/CatalogFilters";
 import { ItemDetailDialog } from "../components/catalog/ItemDetailDialog";
 import {
@@ -89,6 +91,30 @@ export function CatalogPage() {
   const [selectedItem, setSelectedItem] = useState<ItemRow | null>(null);
   const gridApiRef = useRef<GridApi | null>(null);
   const [pageState, setPageState] = useState({ page: 0, pageSize: 50, totalPages: 1 });
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // 딥링크 (/item/:id → /catalog?item=값) — 단일 품목 fetch 후 상세 모달 자동 오픈
+  useEffect(() => {
+    const key = searchParams.get("item");
+    if (!key) return;
+    let cancelled = false;
+    (async () => {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+      const filter: Record<string, string> = isUuid
+        ? { id: `eq.${key}` }
+        : { or: `(item_code.eq.${key},item_code_display.eq.${key},legacy_code.eq.${key})` };
+      try {
+        const arr = await rest<ItemRow[]>("GET", "items", { params: { ...filter, select: "*", limit: "1" } });
+        if (!cancelled && arr[0]) setSelectedItem(arr[0]);
+      } catch { /* 못 찾으면 모달 없이 카탈로그 표시 */ }
+      if (!cancelled) {
+        const next = new URLSearchParams(searchParams);
+        next.delete("item");
+        setSearchParams(next, { replace: true }); // 새로고침/뒤로가기 깔끔
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams, setSearchParams]);
 
   const onPaginationChanged = useCallback(() => {
     const api = gridApiRef.current;

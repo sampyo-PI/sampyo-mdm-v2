@@ -70,13 +70,19 @@ function StatusCell({ value }: ICellRendererParams) {
 }
 
 function ActionCell({ data }: ICellRendererParams<RequestRow>) {
+  const navigate = useNavigate();
   if (!data) return null;
   const canEdit = !["APPROVED", "REJECTED", "REVOKED"].includes(data.status);
   const canRevoke = data.status === "APPROVED";
   return (
     <div className="row-act">
       {canEdit && (
-        <button className="ibtn" title="수정" dangerouslySetInnerHTML={{ __html: ICON_EDIT }} />
+        <button
+          className="ibtn"
+          title="수정"
+          onClick={(e) => { e.stopPropagation(); navigate(`/request/edit/${data.id}`); }}
+          dangerouslySetInnerHTML={{ __html: ICON_EDIT }}
+        />
       )}
       {canEdit && (
         <button className="ibtn del" title="삭제" dangerouslySetInnerHTML={{ __html: ICON_TRASH }} />
