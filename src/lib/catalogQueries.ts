@@ -33,7 +33,7 @@ export async function fetchCatalogPage(
     .select(
       `id, item_code, item_code_display, item_name, normalized_name,
        large_category, medium_category, small_category,
-       maker, model, equipment, stock_unit_code, spec,
+       maker, model, equipment, sub_type, stock_unit_code, spec,
        attributes, is_active, source, legacy_code, upload_batch_id,
        created_at, updated_at`,
       { count: "exact" },

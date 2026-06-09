@@ -1860,11 +1860,14 @@ export type Database = {
       }
       items: {
         Row: {
+          additional_info: string | null
           attributes: Json | null
           base_code: string | null
           created_at: string | null
           equipment: string | null
           id: string
+          needs_review: boolean
+          sub_type: string | null
           is_active: boolean
           item_account_code: string | null
           item_account_name: string | null

@@ -274,8 +274,15 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                           <div className="text-xs text-gray-500 mb-1">
                             정의 속성 ({q.data.attributeSlots.length})
                           </div>
+                          {(item as any)?.sub_type && (
+                            <div className="attr-slot">
+                              <div className="idx">1</div>
+                              <div className="name">세부유형</div>
+                              <div className="val">{(item as any).sub_type}</div>
+                            </div>
+                          )}
                           {q.data.attributeSlots.length === 0 ? (
-                            <div className="text-text-sub italic">소분류 매핑 없음</div>
+                            !(item as any)?.sub_type && <div className="text-text-sub italic">소분류 매핑 없음</div>
                           ) : (
                             q.data.attributeSlots.map((s) => <AttrSlotRow key={s.sort_order} slot={s} />)
                           )}
