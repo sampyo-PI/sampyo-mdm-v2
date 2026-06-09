@@ -18,8 +18,7 @@ export function DashboardPage() {
     <section className="page-card" style={{ marginBottom: 0 }}>
       <div className="page-h">
         <div>
-          <h1>대시보드 <span className="text-xs text-gray-500 font-normal ml-2">/ dashboard</span></h1>
-          <div className="meta">Sampyo MDM 통합 현황 — 검토·승인 / 운영 / 코드 정제</div>
+          <h1>대시보드</h1>
         </div>
       </div>
 

@@ -24,9 +24,7 @@ export function LoginPage() {
         <div>
           <h1>
             로그인
-            <span className="text-xs text-gray-500 font-normal ml-2">/ login</span>
           </h1>
-          <div className="meta">@sampyo.co.kr / @sampyoenc.com 계정 전용 · Google OAuth</div>
         </div>
       </div>
 

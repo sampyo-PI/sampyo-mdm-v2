@@ -178,9 +178,7 @@ export function ApprovalDetailPage() {
         <div>
           <h1>
             요청목록 ▸ 검토승인 상세
-            <span className="text-xs text-gray-500 font-normal ml-2">/ requests/{r.request_number}</span>
           </h1>
-          <div className="meta">{STATUS_LABEL[r.status].label} · 신청 {fmtDate(r.created_at)}</div>
         </div>
         <div className="actions">
           <ReviewInline bundle={bundle} />

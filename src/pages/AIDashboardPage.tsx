@@ -35,7 +35,7 @@ function buildLast7Days(usage: Array<{ date: string; count: number }>): number[]
 }
 
 export function AIDashboardPage() {
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, refetch, isFetching } = useQuery({
     queryKey: ["ai-dashboard-stats"],
     queryFn: () => rpc<DashboardStats>("get_ai_dashboard_stats"),
     staleTime: 60_000,
@@ -64,11 +64,7 @@ export function AIDashboardPage() {
     <section className="page-card">
       <div className="page-h">
         <div>
-          <h1>AI 시스템 현황 <span className="text-xs text-gray-500 font-normal ml-2">/ ai/dashboard</span></h1>
-          <div className="meta">
-            분류 마스터 상태 · AI 사용량 · 최근 7일 집계
-            {isLoading && " · 불러오는 중…"}
-          </div>
+          <h1>AI 시스템 현황</h1>
         </div>
         <div className="actions">
           <button className="btn-sec" onClick={() => refetch()} disabled={isFetching}>

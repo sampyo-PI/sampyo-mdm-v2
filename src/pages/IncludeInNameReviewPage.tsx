@@ -157,9 +157,7 @@ export function IncludeInNameReviewPage() {
           <div>
             <h1>
               품목명 관리
-              <span className="text-xs text-gray-500 font-normal ml-2">/ classification/include-in-name</span>
             </h1>
-            <div className="meta">관리자 전용 페이지</div>
           </div>
         </div>
         <div className="callout danger">
@@ -178,12 +176,7 @@ export function IncludeInNameReviewPage() {
         <div>
           <h1>
             품목명 관리 <span className="t-badge">관리자용</span>
-            <span className="text-xs text-gray-500 font-normal ml-2">/ classification/include-in-name</span>
           </h1>
-          <div className="meta">
-            소분류별 normalized_name 속성 구성 검토
-            {isLoading && " · 불러오는 중…"}
-          </div>
         </div>
         <div className="actions">
           <button className="btn-sec" onClick={() => setShowPreview((v) => !v)}>

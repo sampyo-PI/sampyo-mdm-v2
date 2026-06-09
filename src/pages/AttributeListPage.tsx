@@ -56,7 +56,7 @@ export function AttributeListPage() {
   const [form, setForm] = useState<AttrForm>(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState<Attr | null>(null);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [] } = useQuery({
     queryKey: ["v2-attributes"],
     queryFn: async () => {
       const [attrs, usage] = await Promise.all([
@@ -190,8 +190,7 @@ export function AttributeListPage() {
 
       <div className="page-h">
         <div>
-          <h1>속성 목록<span className="text-xs text-gray-500 font-normal ml-2">/ attribute/list</span></h1>
-          <div className="meta">{counts.all}개 속성 마스터 — 카탈로그 분류별 매핑에 사용{isLoading && " · 불러오는 중…"}</div>
+          <h1>속성 목록</h1>
         </div>
         <div className="actions">
           {isAdmin && <button className="btn-primary" onClick={openAdd}>＋ 속성 추가</button>}

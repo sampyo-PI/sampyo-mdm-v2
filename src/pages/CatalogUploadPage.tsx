@@ -40,9 +40,7 @@ export function CatalogUploadPage() {
           <div>
             <h1>
               데이터 업로드
-              <span className="text-xs text-gray-500 font-normal ml-2">/ catalog/upload</span>
             </h1>
-            <div className="meta">관리자 전용 페이지</div>
           </div>
         </div>
         <div className="callout danger">
@@ -61,9 +59,7 @@ export function CatalogUploadPage() {
         <div>
           <h1>
             데이터 업로드 <span className="t-badge">관리자용</span>
-            <span className="text-xs text-gray-500 font-normal ml-2">/ catalog/upload</span>
           </h1>
-          <div className="meta">Excel(.xlsx) 파일로 품목 카탈로그를 일괄 등록 — 표준코드 기준 upsert</div>
         </div>
       </div>
 

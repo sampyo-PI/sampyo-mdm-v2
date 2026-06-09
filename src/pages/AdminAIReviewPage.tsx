@@ -66,7 +66,7 @@ function fmtRelTime(iso: string): string {
 
 export function AdminAIReviewPage() {
   const [days, setDays] = useState<number>(7);
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["ai-admin-review", days],
     queryFn: () => rpc<AdminReviewStats>("get_ai_admin_review_stats", { p_days: days }),
     staleTime: 60_000,
@@ -76,11 +76,7 @@ export function AdminAIReviewPage() {
     <section className="page-card">
       <div className="page-h">
         <div>
-          <h1>AI 1차 검토 통계 <span className="text-xs text-gray-500 font-normal ml-2">/ admin/ai-review</span></h1>
-          <div className="meta">
-            전 법인 Production 모드 (2026-05-12~) · C1~C8 통과율 · ESCALATED 패턴
-            {isLoading && " · 불러오는 중…"}
-          </div>
+          <h1>AI 1차 검토 통계</h1>
         </div>
         <div className="actions">
           <select

@@ -4,6 +4,7 @@ import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, type ColDef, type GridApi, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
 import { rest } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { GridPager } from "../components/common/GridPager";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -110,6 +111,9 @@ export function OrganizationPage() {
   const [qSite, setQSite] = useState("");
   const [qEq, setQEq] = useState("");
   const apis = useRef<Record<string, GridApi | null>>({ companies: null, sites: null, equipments: null });
+  const [coApi, setCoApi] = useState<GridApi | null>(null);
+  const [siteApi, setSiteApi] = useState<GridApi | null>(null);
+  const [eqApi, setEqApi] = useState<GridApi | null>(null);
 
   // ── 다이얼로그 상태 ──
   const [coDlg, setCoDlg] = useState(false);
@@ -187,6 +191,9 @@ export function OrganizationPage() {
   // ── 그리드 ──
   const onReady = useCallback((key: string) => (e: GridReadyEvent) => {
     apis.current[key] = e.api;
+    if (key === "companies") setCoApi(e.api);
+    else if (key === "sites") setSiteApi(e.api);
+    else if (key === "equipments") setEqApi(e.api);
     e.api.sizeColumnsToFit();
   }, []);
 
@@ -198,7 +205,7 @@ export function OrganizationPage() {
       filter: "agTextColumnFilter" as const,
       menuTabs: ["filterMenuTab", "generalMenuTab"] as ["filterMenuTab", "generalMenuTab"],
     },
-    pagination: true, paginationPageSize: 50, paginationPageSizeSelector: [25, 50, 100],
+    pagination: true, paginationPageSize: 50, suppressPaginationPanel: true,
   };
 
   // ── 편집 열기 ──
@@ -272,8 +279,7 @@ export function OrganizationPage() {
         <style>{PAGE_STYLES}</style>
         <div className="page-h">
           <div>
-            <h1>조직관리<span className="text-xs text-gray-500 font-normal ml-2">/ admin/organization</span></h1>
-            <div className="meta">관리자 전용 페이지</div>
+            <h1>조직관리</h1>
           </div>
         </div>
         <div className="callout-danger">
@@ -283,7 +289,6 @@ export function OrganizationPage() {
     );
   }
 
-  const anyLoading = companiesQ.isLoading || sitesQ.isLoading || equipmentsQ.isLoading;
 
   return (
     <section className="page-card" style={{ marginBottom: 0 }}>
@@ -291,8 +296,7 @@ export function OrganizationPage() {
 
       <div className="page-h">
         <div>
-          <h1>조직관리 <span className="t-badge">관리자용</span><span className="text-xs text-gray-500 font-normal ml-2">/ admin/organization</span></h1>
-          <div className="meta">법인 · 사업장 · 설비 마스터 CRUD{anyLoading && " · 불러오는 중…"}</div>
+          <h1>조직관리 <span className="t-badge">관리자용</span></h1>
         </div>
       </div>
 
@@ -360,6 +364,7 @@ export function OrganizationPage() {
             </div>
             <span className="t-meta">전체 <strong className="t-navy">{companies.length}개</strong></span>
             <span style={{ flex: 1 }}></span>
+            <GridPager api={coApi} pageSizeOptions={[25, 50, 100]} />
             <button className="btn-primary" onClick={() => { setCoEdit(null); setCoForm(EMPTY_COMPANY); setCoDlg(true); }}>+ 법인 추가</button>
           </div>
           <div className="ag-theme-quartz" style={{ height: 480 }}>
@@ -377,6 +382,7 @@ export function OrganizationPage() {
             </div>
             <span className="t-meta">전체 <strong className="t-navy">{sites.length}개</strong></span>
             <span style={{ flex: 1 }}></span>
+            <GridPager api={siteApi} pageSizeOptions={[25, 50, 100]} />
             <button className="btn-primary" onClick={() => { setSiteEdit(null); setSiteForm(EMPTY_SITE); setSiteDlg(true); }}>+ 사업장 추가</button>
           </div>
           <div className="ag-theme-quartz" style={{ height: 480 }}>
@@ -394,6 +400,7 @@ export function OrganizationPage() {
             </div>
             <span className="t-meta">전체 <strong className="t-navy">{equipments.length.toLocaleString()}개</strong></span>
             <span style={{ flex: 1 }}></span>
+            <GridPager api={eqApi} pageSizeOptions={[25, 50, 100]} />
             <button className="btn-primary" onClick={() => { setEqEdit(null); setEqForm(EMPTY_EQUIPMENT); setEqDlg(true); }}>+ 설비 추가</button>
           </div>
           <div className="ag-theme-quartz" style={{ height: 480 }}>

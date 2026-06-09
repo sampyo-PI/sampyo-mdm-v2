@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
-import { ModuleRegistry, AllCommunityModule, type ColDef, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
+import { ModuleRegistry, AllCommunityModule, type ColDef, type GridApi, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
 import { rest } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { GridPager } from "../components/common/GridPager";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -76,6 +77,7 @@ export function DistributionMonitorPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusF, setStatusF] = useState("all");
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
   const { data: erps = [], isLoading: erpLoading } = useQuery({
     queryKey: ["dist-target-erps"],
@@ -165,6 +167,7 @@ export function DistributionMonitorPage() {
 
   const onGridReady = useCallback((e: GridReadyEvent) => {
     e.api.sizeColumnsToFit();
+    setGridApi(e.api);
   }, []);
 
   // 상태 외부 필터 (전체/성공/실패/대기) — erp 셀 상태 기준
@@ -184,8 +187,7 @@ export function DistributionMonitorPage() {
         <style>{PAGE_STYLES}</style>
         <div className="page-h">
           <div>
-            <h1>ERP 배포현황<span className="text-xs text-gray-500 font-normal ml-2">/ distribution</span></h1>
-            <div className="meta">관리자 전용 페이지</div>
+            <h1>ERP 배포현황</h1>
           </div>
         </div>
         <div className="callout-info" style={{ borderLeftColor: "#b91c1c", background: "#fef2f2", color: "#7f1d1d" }}>
@@ -203,11 +205,7 @@ export function DistributionMonitorPage() {
 
       <div className="page-h">
         <div>
-          <h1>ERP 배포현황<span className="text-xs text-gray-500 font-normal ml-2">/ distribution</span></h1>
-          <div className="meta">
-            erp_interface_items 모니터링 · INSERT / UPDATE / REVOKE · 실패 재배포
-            {isFetching && " · 불러오는 중…"}
-          </div>
+          <h1>ERP 배포현황</h1>
         </div>
         <div className="actions">
           <button className="btn-sec" onClick={() => refetch()} disabled={isFetching}>🔄 새로고침</button>
@@ -242,6 +240,7 @@ export function DistributionMonitorPage() {
         </select>
         <span style={{ flex: 1 }}></span>
         <span className="count-chip">{rows.length.toLocaleString()}개 품목 그룹</span>
+        <GridPager api={gridApi} pageSizeOptions={[25, 50, 100]} />
       </div>
 
       <div className="legend">
@@ -262,7 +261,7 @@ export function DistributionMonitorPage() {
           loading={isLoading}
           overlayNoRowsTemplate={isLoading ? "데이터 로딩중…" : "배포 데이터가 없습니다."}
           defaultColDef={{ sortable: true, resizable: true, filter: "agTextColumnFilter", menuTabs: ["filterMenuTab", "generalMenuTab"] }}
-          pagination paginationPageSize={50} paginationPageSizeSelector={[25, 50, 100]}
+          pagination paginationPageSize={50} suppressPaginationPanel
           quickFilterText={search}
           isExternalFilterPresent={isExtPresent}
           doesExternalFilterPass={doesExtPass}

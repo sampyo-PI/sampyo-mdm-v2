@@ -80,7 +80,7 @@ export function ClassificationTreePage() {
   const [editingTerm, setEditingTerm] = useState<FieldTerm | null>(null);
   const [termForm, setTermForm] = useState({ term: "", description: "" });
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["v2-categories-tree"],
     queryFn: async () => {
       const [larges, mediums, smalls] = await Promise.all([
@@ -227,8 +227,7 @@ export function ClassificationTreePage() {
 
       <div className="page-h">
         <div>
-          <h1>분류 체계<span className="text-xs text-gray-500 font-normal ml-2">/ classification/tree</span></h1>
-          <div className="meta">대 {data?.larges.length ?? "—"} / 중 {data?.mediums.length ?? "—"} / 소 {data?.smalls.length ?? "—"} 분류 — 좌→우 드릴다운{isLoading && " · 불러오는 중…"}</div>
+          <h1>분류 체계</h1>
         </div>
       </div>
 

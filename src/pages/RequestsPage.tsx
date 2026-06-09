@@ -7,8 +7,10 @@ import {
   AllCommunityModule,
   type ICellRendererParams,
   type ColDef,
+  type GridApi,
 } from "ag-grid-community";
 import { useAuth } from "../contexts/AuthContext";
+import { GridPager } from "../components/common/GridPager";
 import {
   fetchRequests,
   computeStats,
@@ -100,6 +102,7 @@ export function RequestsPage() {
   const [tab, setTab] = useState<TabKey>("my");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
   const requestsQuery = useQuery({
     queryKey: ["requests", tab, user?.id],
@@ -156,9 +159,7 @@ export function RequestsPage() {
         <div>
           <h1>
             요청목록
-            <span className="text-xs text-gray-500 font-normal ml-2">/ requests</span>
           </h1>
-          <div className="meta">품목코드 등록 요청 관리 · 카드 클릭으로 상태별 필터 · 행 클릭으로 검토 상세 이동</div>
         </div>
         <div className="actions">
           <button className="btn-pri" onClick={() => navigate("/request")}>+ 신규 등록</button>
@@ -180,6 +181,7 @@ export function RequestsPage() {
         <span className="count">
           조회 결과 <b>{filtered.length}</b>건 / 전체 {allRows.length}건
         </span>
+        <GridPager api={gridApi} pageSizeOptions={[25, 50, 100]} />
       </div>
       <style>{`
         .dash-seg { display: inline-flex; gap: 6px; background: #f1f5f9; padding: 5px; border-radius: 10px; }
@@ -205,7 +207,6 @@ export function RequestsPage() {
         ))}
       </div>
 
-      <div className="section-title">요청 목록 (정렬·필터·리사이즈 · 행 클릭 시 검토 상세)</div>
       <div className="ag-theme-quartz" style={{ height: 600, cursor: "pointer" }}>
         <AgGridReact<RequestRow>
           columnDefs={columnDefs}
@@ -220,9 +221,11 @@ export function RequestsPage() {
             filter: "agTextColumnFilter",
             menuTabs: ["filterMenuTab", "generalMenuTab"],
           }}
+          overlayNoRowsTemplate={'<span style="color:#94a3b8">표시할 요청이 없습니다</span>'}
           pagination
           paginationPageSize={50}
-          paginationPageSizeSelector={[25, 50, 100]}
+          suppressPaginationPanel
+          onGridReady={(e) => setGridApi(e.api)}
           onRowClicked={(e) => {
             if (e.data) navigate(`/approval/${e.data.id}`);
           }}

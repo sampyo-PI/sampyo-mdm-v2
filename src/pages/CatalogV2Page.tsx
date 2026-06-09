@@ -115,9 +115,7 @@ export function CatalogV2Page() {
         <div>
           <h1>
             품목마스터 ▸ 표준 카탈로그 (신규)
-            <span className="text-xs text-gray-500 font-normal ml-2">/ cat2 · 트랙1 표준화</span>
           </h1>
-          <div className="meta">cat2_items 전수 조회 (신 분류·세부유형) · AG-Grid Infinite + Supabase range · v1 카탈로그와 별개</div>
         </div>
       </div>
 

@@ -51,7 +51,6 @@ export function ItemRequestPage() {
   const [form, setForm] = useState<FormState>(INIT);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [editLoaded, setEditLoaded] = useState(false); // 편집 대상 로드 1회 가드
-  const [editRequestNumber, setEditRequestNumber] = useState<string | null>(null);
   const [ai, setAi] = useState<AIAnalysisResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -167,7 +166,6 @@ export function ItemRequestPage() {
       const m = mastersQuery.data!.makers.find((x) => x.name === r.maker);
       setDraftId(r.id);
       setDraftVersion(r.version ?? 1);
-      setEditRequestNumber(r.request_number);
       setForm({
         itemName: r.item_name, makerId: m?.id ?? null, makerName: r.maker ?? "",
         model: r.model ?? "", companyId: r.company_id, siteId: r.site_id,
@@ -403,15 +401,7 @@ export function ItemRequestPage() {
         <div>
           <h1>
             품목마스터 ▸ {editId ? "신청 수정" : "품목등록"}
-            <span className="text-xs text-gray-500 font-normal ml-2">/ {editId ? "request/edit" : "request"}</span>
           </h1>
-          <div className="meta">
-            {editId ? (
-              <>기존 신청 <span style={{ fontFamily: "ui-monospace, monospace", color: "#003876", fontWeight: 600 }}>{editRequestNumber ?? "…"}</span> 수정 · 저장 시 임시저장(DRAFT) 갱신, 제출 시 1차 검토 재진행</>
-            ) : (
-              <>신규 품목코드 신청 · AI 분석으로 분류·속성·표준명 자동 추출 · 필수 항목 <span style={{ color: "#dc2626" }}>*</span></>
-            )}
-          </div>
         </div>
       </div>
 
@@ -800,9 +790,6 @@ export function ItemRequestPage() {
             <div>
               <div className="ai-section-title">
                 ▸ 속성 입력 ({ai.attributes.length})
-                <span className="text-xs text-gray-500 font-normal ml-2" style={{ borderBottom: 0 }}>
-                  ★ = 표준명 포함
-                </span>
               </div>
               {ai.attributes.map((a, i) => {
                 const starred = attrStars.has(a.name);

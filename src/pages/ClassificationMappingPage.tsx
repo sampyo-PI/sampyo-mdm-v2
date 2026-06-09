@@ -134,8 +134,7 @@ export function ClassificationMappingPage() {
 
       <div className="page-h">
         <div>
-          <h1>분류-속성 매핑<span className="text-xs text-gray-500 font-normal ml-2">/ classification/mapping</span></h1>
-          <div className="meta">소분류 1개당 속성 매핑 — 좌측 트리 선택 후 우측에서 편집 (변경 즉시 저장)</div>
+          <h1>분류-속성 매핑</h1>
         </div>
       </div>
 
@@ -187,9 +186,6 @@ export function ClassificationMappingPage() {
                 {isAdmin && <button className="btn-primary" onClick={() => { setAddFilter(""); setAddOpen(true); }}>＋ 속성 추가</button>}
               </div>
 
-              <div className="info-strip">
-                💡 sort_order는 등록폼 속성 표시 순서. <strong>품목명 포함</strong>은 표준명 생성에 사용(Path B 전환 중). ↑↓로 순서 변경.
-              </div>
 
               {mapping.length === 0 ? (
                 <div className="empty-state">

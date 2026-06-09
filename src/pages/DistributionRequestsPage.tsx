@@ -53,8 +53,7 @@ export function DistributionRequestsPage() {
     <section className="page-card" style={{ marginBottom: 0 }}>
       <div className="page-h">
         <div>
-          <h1>배포 요청 관리 <span className="text-xs text-gray-500 font-normal ml-2">/ distribution-requests</span></h1>
-          <div className="meta">사용자가 요청한 법인 배포를 승인/반려. 승인 시 해당 법인 ERP로 자동 전송{isLoading && " · 불러오는 중…"}</div>
+          <h1>배포 요청 관리</h1>
         </div>
       </div>
 

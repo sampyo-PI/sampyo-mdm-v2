@@ -267,7 +267,7 @@ export function AdminReviewersPage() {
   const { isAdmin } = useAuth();
   const qc = useQueryClient();
 
-  const { data, isLoading, error } = useQuery({
+  const { data, error } = useQuery({
     queryKey: QK,
     queryFn: loadAll,
     staleTime: 30_000,
@@ -549,9 +549,7 @@ export function AdminReviewersPage() {
           <div>
             <h1>
               검토자 설정
-              <span className="text-xs text-gray-500 font-normal ml-2">/ admin/reviewers</span>
             </h1>
-            <div className="meta">관리자 전용 페이지</div>
           </div>
         </div>
         <div className="gate-card">
@@ -572,17 +570,12 @@ export function AdminReviewersPage() {
         <div>
           <h1>
             검토자 설정 <span className="t-badge">관리자용</span>
-            <span className="text-xs text-gray-500 font-normal ml-2">/ admin/reviewers</span>
             {dirtyCount > 0 && (
               <span className="badge dirty" style={{ marginLeft: 8 }}>
                 미저장 변경 {dirtyCount}건
               </span>
             )}
           </h1>
-          <div className="meta">
-            계열 · 법인 · 전사 3단 폴백 + AI 1차 검토 ON/OFF
-            {isLoading && " · 불러오는 중…"}
-          </div>
         </div>
         <div className="actions">
           <button className="btn-sec" onClick={cancelAll} disabled={dirtyCount === 0}>
@@ -817,10 +810,10 @@ const PAGE_STYLES = `
 .gate-card p { font-size:13px; color:#7f1d1d; margin:0; }
 
 .stat-card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; }
-.stat-card .stat-label { font-size: 12px; color: #64748b; }
-.stat-card .stat-val { font-size: 22px; font-weight: 700; color: #003876; line-height: 1.1; margin-top: 4px; }
-.stat-card .stat-val small { font-size: 13px; font-weight: 500; color: #94a3b8; }
-.stat-card .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.stat-card .stat-label { font-size: 14px; color: #64748b; }
+.stat-card .stat-val { font-size: 30px; font-weight: 700; color: #003876; line-height: 1.1; margin-top: 6px; }
+.stat-card .stat-val small { font-size: 15px; font-weight: 500; color: #94a3b8; }
+.stat-card .stat-sub { display: none; }
 .stat-card.warn .stat-val { color: #b45309; }
 .stat-card.success .stat-val { font-size: 16px; color: #047857; padding-top: 4px; }
 

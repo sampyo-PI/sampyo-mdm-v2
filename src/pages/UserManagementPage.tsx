@@ -5,11 +5,13 @@ import {
   ModuleRegistry,
   AllCommunityModule,
   type ColDef,
+  type GridApi,
   type GridReadyEvent,
   type ICellRendererParams,
 } from "ag-grid-community";
 import { rest } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { GridPager } from "../components/common/GridPager";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -130,6 +132,7 @@ export function UserManagementPage() {
   const companies = useMemo(() => data?.companies ?? [], [data]);
 
   const [search, setSearch] = useState("");
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
   // 다이얼로그 상태
   const [roleTarget, setRoleTarget] = useState<UserRow | null>(null);
@@ -321,6 +324,7 @@ export function UserManagementPage() {
 
   const onGridReady = useCallback((params: GridReadyEvent) => {
     params.api.sizeColumnsToFit();
+    setGridApi(params.api);
   }, []);
 
   const totalUsers = users.length;
@@ -336,9 +340,7 @@ export function UserManagementPage() {
           <div>
             <h1>
               사용자관리
-              <span className="text-xs text-gray-500 font-normal ml-2">/ admin/users</span>
             </h1>
-            <div className="meta">관리자 전용 페이지</div>
           </div>
         </div>
         <div className="callout-danger">
@@ -357,12 +359,7 @@ export function UserManagementPage() {
         <div>
           <h1>
             사용자관리 <span className="t-badge">관리자용</span>
-            <span className="text-xs text-gray-500 font-normal ml-2">/ admin/users</span>
           </h1>
-          <div className="meta">
-            시스템 사용자 · 역할 · 법인 매핑 관리
-            {isLoading && " · 불러오는 중…"}
-          </div>
         </div>
       </div>
 
@@ -397,9 +394,6 @@ export function UserManagementPage() {
         </div>
       </div>
 
-      <div className="callout-info">
-        💡 HR API 연동으로 신규 사용자는 첫 로그인 시 자동 등록됩니다. 사전등록 역할은 <strong>pending_user_roles</strong> 테이블로 미리 부여 가능. 역할 뱃지의 <strong>×</strong>로 즉시 제거할 수 있습니다.
-      </div>
 
       {/* Toolbar */}
       <div className="user-toolbar">
@@ -413,6 +407,7 @@ export function UserManagementPage() {
           />
         </div>
         <span className="t-meta">전체 <strong className="t-navy">{totalUsers}명</strong></span>
+        <GridPager api={gridApi} pageSizeOptions={[25, 50, 100]} />
       </div>
 
       <div className="ag-theme-quartz" style={{ height: 560 }}>
@@ -430,7 +425,7 @@ export function UserManagementPage() {
           }}
           pagination
           paginationPageSize={50}
-          paginationPageSizeSelector={[25, 50, 100]}
+          suppressPaginationPanel
           quickFilterText={search}
           onGridReady={onGridReady}
           loading={isLoading}

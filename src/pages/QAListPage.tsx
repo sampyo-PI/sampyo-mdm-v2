@@ -99,11 +99,7 @@ export function QAListPage() {
         <section className="page-card" style={{ marginBottom: 0 }}>
           <div className="page-h">
             <div>
-              <h1>Q&amp;A <span className="text-xs text-gray-500 font-normal ml-2">/ qna</span></h1>
-              <div className="meta">
-                전체 {tabCounts.all}건 · 미해결 {tabCounts.open} · 종료 {tabCounts.closed}
-                {isLoading && " · 불러오는 중…"}
-              </div>
+              <h1>Q&amp;A</h1>
             </div>
             <div className="actions">
               <button className="btn-pri" onClick={() => setDialogOpen(true)} disabled={!user} title={user ? "" : "로그인이 필요합니다"}>+ 새 질문 작성</button>

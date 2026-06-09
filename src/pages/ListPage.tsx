@@ -70,9 +70,7 @@ export function ListPage() {
         <div>
           <h1>
             품목마스터 ▸ 목록
-            <span className="text-xs text-gray-500 font-normal ml-2">/ list</span>
           </h1>
-          <div className="meta">SDS ListPage 표준 패턴 · 데모 데이터 8건</div>
         </div>
         <div className="actions">
           <button className="btn-sec">엑셀 다운로드</button>

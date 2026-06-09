@@ -42,7 +42,7 @@ function fmtNum(n: number | undefined): string {
 
 export function AIQualityPage() {
   const [days, setDays] = useState<number>(30);
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["ai-quality-stats", days],
     queryFn: () => rpc<QualityStats>("get_ai_quality_stats", { p_days: days }),
     staleTime: 60_000,
@@ -52,11 +52,7 @@ export function AIQualityPage() {
     <section className="page-card">
       <div className="page-h">
         <div>
-          <h1>AI 분류 정확도 <span className="text-xs text-gray-500 font-normal ml-2">/ ai/quality</span></h1>
-          <div className="meta">
-            신뢰도 분포 · 검토자 정정 패턴 · 중복 위험 분석 (최근 {days}일 기준)
-            {isLoading && " · 불러오는 중…"}
-          </div>
+          <h1>AI 분류 정확도</h1>
         </div>
         <div className="actions">
           <select

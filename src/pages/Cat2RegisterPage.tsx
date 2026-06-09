@@ -61,8 +61,7 @@ export function Cat2RegisterPage() {
     <section className="page-card">
       <div className="page-h">
         <div>
-          <h1>품목등록 ▸ 표준 품목등록 + 중복검사 <span className="text-xs text-gray-500 font-normal ml-2">/ cat2 dedup</span></h1>
-          <div className="meta">신 분류·세부유형 + 속성 입력 → 정규화 후 중복엔진(cat2-dedup-check) 판정. (채번·제출은 Phase 6 이후)</div>
+          <h1>품목등록 ▸ 표준 품목등록 + 중복검사</h1>
         </div>
       </div>
 

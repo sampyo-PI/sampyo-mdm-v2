@@ -72,8 +72,7 @@ export function ManualPage() {
 
         <div className="page-h" style={{ marginBottom: 8 }}>
           <div>
-            <h1>삼표 품목코드 시스템(MDM) 매뉴얼 <span className="text-xs text-gray-500 font-normal ml-2">/ manual</span></h1>
-            <div className="meta">최종 수정 2026-06-05 · 작성 PI팀 · 매뉴얼 v1.0</div>
+            <h1>삼표 품목코드 시스템(MDM) 매뉴얼</h1>
           </div>
           <div className="actions">
             <button className="btn-sec" title="인쇄">🖨 인쇄</button>

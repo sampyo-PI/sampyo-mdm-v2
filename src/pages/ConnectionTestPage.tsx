@@ -26,9 +26,7 @@ export function ConnectionTestPage() {
         <div>
           <h1>
             Supabase 연결 검증
-            <span className="text-xs text-gray-500 font-normal ml-2">/ connection-test</span>
           </h1>
-          <div className="meta">기존 MDM 프로젝트(xziehhunxvxxwtqkzobv) 공유 · companies 조회</div>
         </div>
       </div>
 

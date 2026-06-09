@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule, type ColDef, type GridApi, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
 import { rest, rpc } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
+import { GridPager } from "../components/common/GridPager";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -131,9 +132,7 @@ export function ERPAdminPage() {
           <div>
             <h1>
               배포 ERP 관리
-              <span className="text-xs text-gray-500 font-normal ml-2">/ admin/erp</span>
             </h1>
-            <div className="meta">관리자 전용 페이지</div>
           </div>
         </div>
         <div className="callout-danger">
@@ -151,9 +150,8 @@ export function ERPAdminPage() {
       <div className="page-h">
         <div>
           <h1>
-            배포 ERP 관리<span className="text-xs text-gray-500 font-normal ml-2">/ admin/erp</span>
+            배포 ERP 관리
           </h1>
-          <div className="meta">배포 대상 ERP 시스템 + 법인별 품목계정 매핑 (IF_B_ITEM 송신 기준)</div>
         </div>
       </div>
 
@@ -182,7 +180,7 @@ export function ERPAdminPage() {
 function SystemsTab() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
-  const apiRef = useRef<GridApi | null>(null);
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ERPSystem | null>(null);
   const [form, setForm] = useState({ code: "", name: "", description: "", is_active: true, sort_order: 0 });
@@ -322,7 +320,7 @@ function SystemsTab() {
   );
 
   const onReady = (e: GridReadyEvent) => {
-    apiRef.current = e.api;
+    setGridApi(e.api);
     e.api.sizeColumnsToFit();
   };
 
@@ -340,6 +338,7 @@ function SystemsTab() {
           전체 <strong className="t-navy">{rows.length}개</strong>
         </span>
         <span style={{ flex: 1 }} />
+        <GridPager api={gridApi} pageSizeOptions={[25, 50, 100]} />
         <button className="btn-primary" onClick={openAdd}>
           + ERP 추가
         </button>
@@ -358,7 +357,7 @@ function SystemsTab() {
           defaultColDef={{ sortable: true, resizable: true, filter: "agTextColumnFilter" }}
           pagination
           paginationPageSize={50}
-          paginationPageSizeSelector={[25, 50, 100]}
+          suppressPaginationPanel
         />
       </div>
 

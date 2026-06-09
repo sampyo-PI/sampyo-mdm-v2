@@ -225,9 +225,7 @@ export function CatalogPage() {
         <div>
           <h1>
             품목마스터 ▸ 카탈로그
-            <span className="text-xs text-gray-500 font-normal ml-2">/ catalog</span>
           </h1>
-          <div className="meta">활성 items 전수 조회 · AG-Grid Infinite + Supabase range · 갱신: 실시간</div>
         </div>
         <div className="actions">
           <button className="btn-sec" type="button" disabled title="다음 단계">엑셀 다운로드</button>

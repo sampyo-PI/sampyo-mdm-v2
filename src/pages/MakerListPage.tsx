@@ -59,7 +59,7 @@ export function MakerListPage() {
   const [mergeConfirm, setMergeConfirm] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState<string | null>(null);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [] } = useQuery({
     queryKey: ["v2-makers"],
     queryFn: async () => {
       const [makers, usage] = await Promise.all([fetchAllMakers(), rpc<Record<string, number>>("get_maker_usage_counts")]);
@@ -240,8 +240,7 @@ export function MakerListPage() {
 
       <div className="page-h">
         <div>
-          <h1>제조사 리스트<span className="text-xs text-gray-500 font-normal ml-2">/ maker-model</span></h1>
-          <div className="meta">{rows.length.toLocaleString()}개 제조사 마스터 · items.maker 매칭 (free-text){isLoading && " · 불러오는 중…"}</div>
+          <h1>제조사 리스트</h1>
         </div>
         <div className="actions">
           {isAdmin && (mergeMode === "off" ? (
@@ -414,9 +413,9 @@ export function MakerListPage() {
 
 const PAGE_STYLES = `
 .stat-card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; }
-.stat-card .stat-label { font-size: 12px; color: #64748b; }
-.stat-card .stat-val { font-size: 22px; font-weight: 700; color: #003876; line-height: 1.1; margin-top: 4px; }
-.stat-card .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.stat-card .stat-label { font-size: 14px; color: #64748b; }
+.stat-card .stat-val { font-size: 30px; font-weight: 700; color: #003876; line-height: 1.1; margin-top: 6px; }
+.stat-card .stat-sub { display: none; }
 
 .callout-merge { background: #fef3c7; border-left: 3px solid #92400e; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #78350f; margin-top: 16px; }
 

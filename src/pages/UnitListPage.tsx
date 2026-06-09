@@ -52,7 +52,7 @@ export function UnitListPage() {
   const [form, setForm] = useState<UnitForm>(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [] } = useQuery({
     queryKey: ["v2-units"],
     queryFn: async () => {
       const [units, usage] = await Promise.all([
@@ -168,8 +168,7 @@ export function UnitListPage() {
 
       <div className="page-h">
         <div>
-          <h1>단위 관리<span className="text-xs text-gray-500 font-normal ml-2">/ unit</span></h1>
-          <div className="meta">{rows.length}개 단위 마스터 · ERP 재고단위는 별도 마스터 (법인별 14×976행){isLoading && " · 불러오는 중…"}</div>
+          <h1>단위 관리</h1>
         </div>
         <div className="actions">
           {isAdmin && <button className="btn-primary" onClick={openAdd}>＋ 단위 추가</button>}
@@ -194,9 +193,6 @@ export function UnitListPage() {
         </div>
       </div>
 
-      <div className="callout-info">
-        💡 MDM <strong>units</strong> 마스터 = 시스템 내 표준. ERP는 법인별로 <strong>erp_basic_units_by_company</strong>를 따로 보유 (14법인 × 976행). erp-sync는 ERP 우선 lookup → units fallback (옵션 2 매핑).
-      </div>
 
       <div className="unit-toolbar">
         <div className="search-box">
@@ -301,10 +297,10 @@ export function UnitListPage() {
 
 const PAGE_STYLES = `
 .stat-card { background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px 18px; }
-.stat-card .stat-label { font-size: 12px; color: #64748b; }
-.stat-card .stat-val { font-size: 22px; font-weight: 700; color: #003876; line-height: 1.1; margin-top: 4px; }
-.stat-card .stat-val small { font-size: 13px; font-weight: 500; color: #94a3b8; }
-.stat-card .stat-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.stat-card .stat-label { font-size: 14px; color: #64748b; }
+.stat-card .stat-val { font-size: 30px; font-weight: 700; color: #003876; line-height: 1.1; margin-top: 6px; }
+.stat-card .stat-val small { font-size: 15px; font-weight: 500; color: #94a3b8; }
+.stat-card .stat-sub { display: none; }
 
 .callout-info { background: #eff6ff; border-left: 3px solid #003876; padding: 10px 14px; border-radius: 6px; font-size: 13px; color: #1e293b; margin-top: 16px; }
 
