@@ -77,11 +77,15 @@ export type BatchInfo = {
   note: string | null;
 };
 
+export type FieldTerm = { id: string; term: string; is_active: boolean };
 export type ItemDetailBundle = {
   item: ItemRow;
   linkedCompanies: LinkedCompany[];
   attributeSlots: AttributeSlot[];
   batch: BatchInfo | null;
+  smallCategoryId: string | null;        // 현장용어 추가용
+  fieldTerms: FieldTerm[];               // 소분류 현장용어
+  requestAttachments: { images: string[]; docs: string[] };  // 원 신청 첨부 (item_request_id)
 };
 
 /**
@@ -131,8 +135,10 @@ export async function fetchItemDetail(item: ItemRow): Promise<ItemDetailBundle> 
     linked.sort((a, b) => a.code.localeCompare(b.code));
   }
 
-  // 5 속성 슬롯 (소분류 기준)
+  // 5 속성 슬롯 (소분류 기준) + 현장용어
   const attributeSlots: AttributeSlot[] = [];
+  let smallCategoryId: string | null = null;
+  let fieldTerms: FieldTerm[] = [];
   if (item.small_category) {
     const { data: smallRow } = await supabase
       .from("category_small")
@@ -140,6 +146,13 @@ export async function fetchItemDetail(item: ItemRow): Promise<ItemDetailBundle> 
       .eq("name", item.small_category)
       .maybeSingle();
     if (smallRow?.id) {
+      smallCategoryId = smallRow.id;
+      // 현장용어 (소분류)
+      try {
+        fieldTerms = await rest<FieldTerm[]>("GET", "category_field_terms", {
+          params: { select: "id,term,is_active", small_category_id: `eq.${smallRow.id}`, order: "sort_order.asc" },
+        });
+      } catch { fieldTerms = []; }
       const { data: maps } = await supabase
         .from("category_attribute_mappings")
         .select(`sort_order, include_in_name, attribute:attributes(name)`)
@@ -180,5 +193,18 @@ export async function fetchItemDetail(item: ItemRow): Promise<ItemDetailBundle> 
     if (data) batch = data as BatchInfo;
   }
 
-  return { item, linkedCompanies: linked, attributeSlots, batch };
+  // 첨부파일 — 원 신청(item_request_id)의 image_urls/document_urls
+  let requestAttachments = { images: [] as string[], docs: [] as string[] };
+  const reqId = (item as unknown as { item_request_id?: string | null }).item_request_id;
+  if (reqId) {
+    try {
+      const reqs = await rest<Array<{ image_urls: string[] | null; document_urls: string[] | null }>>(
+        "GET", "item_requests",
+        { params: { select: "image_urls,document_urls", id: `eq.${reqId}`, limit: "1" } },
+      );
+      if (reqs[0]) requestAttachments = { images: reqs[0].image_urls ?? [], docs: reqs[0].document_urls ?? [] };
+    } catch { /* 무시 */ }
+  }
+
+  return { item, linkedCompanies: linked, attributeSlots, batch, smallCategoryId, fieldTerms, requestAttachments };
 }

@@ -12,6 +12,8 @@ import {
   type AttributeSlot,
 } from "../../lib/itemDetailQueries";
 import { requestDistribution, fetchMyPendingRequest } from "../../lib/distributionRequests";
+import { getSignedUrl } from "../../lib/itemRequestQueries";
+import { rest } from "../../lib/supabase";
 import { asAttrArray, formatYyMm } from "../../lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import type { ItemRow } from "../../lib/catalogQueries";
@@ -165,6 +167,26 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
     onError: (e) => setDMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
   });
 
+  // ── 현장용어 추가 (admin) ──
+  const [newTerm, setNewTerm] = useState("");
+  const addTermMut = useMutation({
+    mutationFn: async () => {
+      await rest("POST", "category_field_terms", {
+        body: { small_category_id: q.data!.smallCategoryId, term: newTerm.trim(), sort_order: q.data!.fieldTerms.length },
+        prefer: "return=representation",
+      });
+    },
+    onSuccess: () => { setNewTerm(""); qc.invalidateQueries({ queryKey: ["item-detail", item?.id] }); },
+    onError: (e) => setDMsg({ ok: false, text: e instanceof Error ? e.message : String(e) }),
+  });
+
+  // ── 첨부 다운로드 (signed URL) ──
+  const openAttachment = async (path: string) => {
+    const url = await getSignedUrl(path);
+    if (url) window.open(url, "_blank");
+    else setDMsg({ ok: false, text: "첨부 링크 생성 실패" });
+  };
+
   const sourceBadge = item?.source ? SOURCE_BADGE[item.source] : null;
   const fullCategory = [item?.large_category, item?.medium_category, item?.small_category]
     .filter(Boolean)
@@ -317,6 +339,39 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                       </div>
                     </div>
 
+                    {/* 2.5 현장용어 (소분류) — 조회 + admin 추가 */}
+                    <div className="form-group">
+                      <div className="fg-title">
+                        현장용어
+                        <span className="text-xs text-gray-500 font-normal ml-2" style={{ borderBottom: 0 }}>
+                          {q.data.fieldTerms.filter((t) => t.is_active).length}건 · {item?.small_category || "—"}
+                        </span>
+                      </div>
+                      {q.data.fieldTerms.length === 0 ? (
+                        <div className="text-text-sub italic" style={{ marginBottom: isAdmin ? 10 : 0 }}>등록된 현장용어 없음</div>
+                      ) : (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: isAdmin ? 10 : 0 }}>
+                          {q.data.fieldTerms.map((t) => (
+                            <span key={t.id} className="badge b-warn" style={{ opacity: t.is_active ? 1 : 0.45 }}>{t.term}</span>
+                          ))}
+                        </div>
+                      )}
+                      {isAdmin && q.data.smallCategoryId && (
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <input
+                            style={{ flex: 1, minWidth: 200, maxWidth: 320, border: "1px solid var(--c-border)", borderRadius: 6, padding: "6px 10px", fontSize: "var(--app-fs-md)" }}
+                            placeholder="현장용어 추가 (예: 깡구)" value={newTerm}
+                            onChange={(e) => setNewTerm(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter" && newTerm.trim()) addTermMut.mutate(); }}
+                          />
+                          <button className="btn-sec" disabled={!newTerm.trim() || addTermMut.isPending} onClick={() => addTermMut.mutate()}>
+                            {addTermMut.isPending ? "추가 중…" : "＋ 추가"}
+                          </button>
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500" style={{ marginTop: 6 }}>카탈로그 검색 시 한글명·영문명 외 별칭으로 매칭됩니다.</div>
+                    </div>
+
                     {/* 3. 사용 법인 */}
                     <div className="form-group">
                       <div className="fg-title">
@@ -441,15 +496,30 @@ export function ItemDetailDialog({ item, open, onClose }: Props) {
                       )}
                     </div>
 
-                    {/* 4. 첨부파일 (placeholder) */}
+                    {/* 4. 첨부파일 — 원 신청(item_request) 첨부 */}
                     <div className="form-group">
                       <div className="fg-title">
                         첨부파일
                         <span className="text-xs text-gray-500 font-normal ml-2" style={{ borderBottom: 0 }}>
-                          (Phase 2)
+                          {q.data.requestAttachments.images.length + q.data.requestAttachments.docs.length}건
                         </span>
                       </div>
-                      <div className="text-text-sub italic">첨부파일 기능 준비 중</div>
+                      {(q.data.requestAttachments.images.length + q.data.requestAttachments.docs.length) === 0 ? (
+                        <div className="text-text-sub italic">첨부 없음</div>
+                      ) : (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          {q.data.requestAttachments.images.map((p, i) => (
+                            <button key={`img-${i}`} className="btn-ghost" style={{ fontSize: 12 }} onClick={() => openAttachment(p)} title="새 탭에서 열기">
+                              🖼️ {p.split("/").pop()?.replace(/^\d+_/, "") ?? "이미지"}
+                            </button>
+                          ))}
+                          {q.data.requestAttachments.docs.map((p, i) => (
+                            <button key={`doc-${i}`} className="btn-ghost" style={{ fontSize: 12 }} onClick={() => openAttachment(p)} title="새 탭에서 열기">
+                              📎 {p.split("/").pop()?.replace(/^\d+_/, "") ?? "문서"}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* 5. 이력 */}
