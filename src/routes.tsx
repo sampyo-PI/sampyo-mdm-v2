@@ -110,7 +110,6 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "request",
     children: [
       { label: "신규 등록", path: "/request/new" },
-      { label: "표준 등록 + 중복검사", path: "/request-std" },
       { label: "요청목록", path: "/requests" },
       { label: "배포 요청 관리", path: "/distribution-requests" },
     ],
@@ -120,7 +119,6 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: "master",
     children: [
       { label: "품목 카탈로그", path: "/catalog" },
-      { label: "표준 카탈로그 (신규)", path: "/catalog-std" },
       { label: "데이터 업로드", path: "/catalog/upload", adminOnly: true },
     ],
   },
@@ -130,7 +128,6 @@ export const SIDEBAR_ITEMS: SidebarItem[] = [
     children: [
       { label: "분류 체계", path: "/classification/tree" },
       { label: "분류-속성 매핑", path: "/classification/mapping" },
-      { label: "품목명 관리 (관리자용)", path: "/classification/include-in-name", adminOnly: true },
     ],
   },
   {
