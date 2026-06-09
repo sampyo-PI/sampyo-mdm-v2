@@ -53,6 +53,12 @@ export function OptionCombobox({
     );
   }, [options, query]);
 
+  // 렌더 노드 상한 — 제조사처럼 옵션이 1000+ 이면 전부 렌더 시 입력마다 멈춤(Headless UI 가상화 없음).
+  // 상위 MAX_RENDER개만 그리고 나머지는 검색으로 좁히도록 안내.
+  const MAX_RENDER = 50;
+  const visible = useMemo(() => filtered.slice(0, MAX_RENDER), [filtered]);
+  const overflow = filtered.length - visible.length;
+
   const showCreate = !!onCreate && query.trim().length > 0 && !options.some((o) => o.label === query.trim());
 
   const handleCreate = async () => {
@@ -94,16 +100,23 @@ export function OptionCombobox({
           {filtered.length === 0 && !showCreate ? (
             <div className="combo-empty">결과 없음</div>
           ) : (
-            filtered.map((o) => (
-              <ComboboxOption
-                key={o.value}
-                value={o}
-                className="combo-item data-[focus]:bg-blue-50 data-[selected]:font-semibold"
-              >
-                <span style={{ flex: 1 }}>{o.label}</span>
-                {o.sub && <span className="text-xs text-text-sub">{o.sub}</span>}
-              </ComboboxOption>
-            ))
+            <>
+              {visible.map((o) => (
+                <ComboboxOption
+                  key={o.value}
+                  value={o}
+                  className="combo-item data-[focus]:bg-blue-50 data-[selected]:font-semibold"
+                >
+                  <span style={{ flex: 1 }}>{o.label}</span>
+                  {o.sub && <span className="text-xs text-text-sub">{o.sub}</span>}
+                </ComboboxOption>
+              ))}
+              {overflow > 0 && (
+                <div className="combo-empty" style={{ fontSize: 12, color: "#94a3b8" }}>
+                  외 {overflow.toLocaleString()}개 — 검색어로 좁혀주세요
+                </div>
+              )}
+            </>
           )}
           {showCreate && (
             <div

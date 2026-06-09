@@ -492,13 +492,6 @@ export function ItemRequestPage() {
 
         <div className="fg-title-row">
           <span className="title-text">품목 정보 입력</span>
-          <button
-            className="btn-search"
-            disabled
-            title="Phase 2 — 기존 품목 검색 다이얼로그 연결 예정"
-          >
-            🔍 기존 품목 검색
-          </button>
         </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
