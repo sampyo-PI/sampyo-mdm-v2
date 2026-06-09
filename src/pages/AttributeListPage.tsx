@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AgGridReact } from "ag-grid-react";
-import { ModuleRegistry, AllCommunityModule, type ColDef, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
+import { ModuleRegistry, AllCommunityModule, type ColDef, type GridApi, type GridReadyEvent, type ICellRendererParams } from "ag-grid-community";
 import { rest, rpc } from "../lib/supabase";
+import { GridPager } from "../components/common/GridPager";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -38,6 +39,7 @@ type Filter = "all" | "active" | "inactive";
 export function AttributeListPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [gridApi, setGridApi] = useState<GridApi | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["v2-attributes"],
@@ -68,7 +70,7 @@ export function AttributeListPage() {
     { headerName: "관리", width: 90, cellRenderer: () => <ActionsCell />, sortable: false, filter: false, cellStyle: { display: "flex", alignItems: "center", justifyContent: "center" } as any },
   ]), [maxUsage]);
 
-  const onGridReady = useCallback((e: GridReadyEvent) => { e.api.sizeColumnsToFit(); }, []);
+  const onGridReady = useCallback((e: GridReadyEvent) => { e.api.sizeColumnsToFit(); setGridApi(e.api); }, []);
 
   const filtered = useMemo(() => {
     if (filter === "all") return rows;
@@ -107,6 +109,7 @@ export function AttributeListPage() {
         </div>
         <span style={{ flex: 1 }}></span>
         <span className="t-meta">총 <strong className="t-navy">{counts.all}건</strong></span>
+        <GridPager api={gridApi} pageSizeOptions={[25, 50, 100]} />
       </div>
 
       <div className="ag-theme-quartz" style={{ height: 560 }}>
@@ -116,7 +119,7 @@ export function AttributeListPage() {
           rowHeight={48} headerHeight={36}
           suppressCellFocus suppressMenuHide
           defaultColDef={{ sortable: true, resizable: true, filter: "agTextColumnFilter", menuTabs: ["filterMenuTab", "generalMenuTab"] }}
-          pagination paginationPageSize={50} paginationPageSizeSelector={[25, 50, 100]}
+          pagination paginationPageSize={50} suppressPaginationPanel
           quickFilterText={search}
           onGridReady={onGridReady}
         />
