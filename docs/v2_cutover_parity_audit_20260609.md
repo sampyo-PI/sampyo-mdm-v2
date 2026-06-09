@@ -71,17 +71,21 @@
 - `/item/:id` `/item/search` → **모달 흡수**: `/item/:id`→`/catalog?item=값` 리다이렉트 + CatalogPage가 param 읽어 단일 fetch→ItemDetailDialog 자동 오픈(id/item_code/display/legacy_code 매칭). 검증 통과
 - `/erp/lookup` → **폐기**(DistributionMonitorPage가 커버, v2 부재 확인)
 
-### D. 컷오버 인프라 (서버/VPN)
-- [ ] Vite `base:'/v2/'`→`'/'` + React Router basename 제거 + 재빌드
-- [ ] **Supabase OAuth**: Site URL/Redirect URLs를 `https://mdm.sampyo.co.kr/`로 (root hostname이라 IP거부 회피됨)
-- [ ] nginx root를 v2 dist로 교체 (**v1 dist 보존=롤백**) + `/v2/` location 정리
-- [ ] 스모크 테스트(로그인/카탈로그/신청/승인/관리자 CRUD) / nginx config 가드(반복 소실 이력)
+### D. ✅ 컷오버 인프라 — **6-9 실행 완료·라이브** (v2 = 운영 root 앱)
+- [x] Vite `base:'/v2/'`→`'/'` (basename·OAuth redirectTo 모두 `BASE_URL` 파생이라 자동 조정) + AdminAIReview `/v2/ai/quality` 링크 BASE_URL화 + 재빌드(index → `/assets/`)
+- [x] **Supabase OAuth = 무변경**: Site URL 이미 root(`https://mdm.sampyo.co.kr`) + 허용목록에 root(`/**`) 이미 존재 → 컷오버 후 redirectTo `…/login` 그대로 작동. `/v2` 항목은 롤백 위해 유지(나중 정리)
+- [x] nginx root `/var/www/sampyo-mdm`(v1) → `/var/www/sampyo-mdm-v2-root`(v2 base'/' 빌드) 교체 + `location /`에 index no-cache(stale-shell 방지). **v1 dist·`/v2/` location·`/api/hr` 보존**. `_cutover_nginx_root.cjs`(백업+nginx -t+실패시 자동복원)
+- [x] 스모크: root=v2 청크·에셋200·no-cache헤더·/catalog fallback·/v2/보존·/api/hr생존 + Playwright admin 세션으로 root 4동선(대시보드/카탈로그/요청목록/admin) 렌더·세션유지·게이트 통과
+- **롤백**: `node scripts/_cutover_nginx_root.cjs --rollback` (root→v1) 또는 config 백업 `*.bak.cutover_*` 복원. v1 dist 무손상
+- **후속(비차단)**: `/v2/` location·`/var/www/sampyo-mdm-v2` dir·OAuth `/v2` 허용목록 정리(안정화 후)
 
 ## 4. 권장 우선순위
 1. ~~**B(정합)**~~ ✅ 완료 (6-9)
 2. ~~**A(CRUD 활성)**~~ ✅ 완료 (6-9) — 단위→제조사→속성→분류체계→매핑 5페이지 배포·검증
-3. ~~**C 누락페이지 결정**~~ ✅ 완료 (6-9) — edit 살림 / item-list·erp-lookup 폐기 / item/:id 모달 흡수
-4. **D 인프라** (base'/'·OAuth·nginx) ← **다음·마지막 컷오버** (운영 전환, 사용자 협의·일정 필요)
+3. ~~**C 누락페이지 결정**~~ ✅ 완료 (6-9)
+4. ~~**D 인프라 컷오버**~~ ✅ **실행 완료·라이브 (6-9)** — **v2가 운영 root 앱**. v1 dist 보존(롤백)
+
+> 🎉 **빅뱅 전환 완료** — B·A·C·D 전부. `mdm.sampyo.co.kr/` = v2. 잔여는 비차단 정리(/v2/ location·옛 dir·OAuth /v2 항목).
 
 > **⚠️ nginx `/v2/` location 반복 소실**: 메인 `mdm.sampyo.co.kr` config의 `location ^~ /v2/` 블록이 또 사라짐(6-9). 복구 스크립트 `scripts/_add_mdm_v2_location.cjs` **재생성**(멱등 + nginx -t 검증 + 실패 시 백업 복원). 배포 후 `/v2/` 404 시 이 스크립트 실행.
 

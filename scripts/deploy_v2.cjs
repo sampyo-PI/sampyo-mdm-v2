@@ -41,7 +41,8 @@ const USER = env.DEPLOY_USER || 'sampyopi';
 const SUDO_PASS = env.DEPLOY_SUDO_PASS || '';
 const SSH_KEY_PATH = (env.DEPLOY_SSH_KEY_PATH || '').replace(/^~/, require('os').homedir());
 
-const REMOTE_DIR = '/var/www/sampyo-mdm-v2';
+// 배포 대상 디렉토리 — DEPLOY_REMOTE_DIR env로 override 가능 (빅뱅 컷오버 시 root dist 디렉토리 지정)
+const REMOTE_DIR = process.env.DEPLOY_REMOTE_DIR || env.DEPLOY_REMOTE_DIR || '/var/www/sampyo-mdm-v2';
 const LOCAL_DIST = path.resolve(__dirname, '../dist');
 
 function uploadDir(sftp, localDir, remoteDir, cb) {
@@ -95,7 +96,8 @@ const conn = new Client();
 conn.on('ready', async () => {
   console.log('[1] SSH OK');
   try {
-    console.log('[2] 디렉토리 클린 + 권한 변경...');
+    console.log(`[2] 디렉토리 준비(${REMOTE_DIR}) + 클린 + 권한 변경...`);
+    await exec(conn, sudoCmd(`mkdir -p ${REMOTE_DIR}`));
     await exec(conn, sudoCmd(`rm -rf ${REMOTE_DIR}/*`));
     await exec(conn, sudoCmd(`chown -R ${USER}:${USER} ${REMOTE_DIR}`));
     console.log('  OK');

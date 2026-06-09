@@ -216,7 +216,7 @@ export function AdminAIReviewPage() {
       </table>
 
       <div className="text-xs" style={{ color: "var(--c-text-sub)", marginTop: 16 }}>
-        ⓘ 더 자세한 통계는 <a href="/v2/ai/quality" style={{ color: "var(--c-accent-500)" }}>AI 분류 정확도</a>에서 확인하세요.
+        ⓘ 더 자세한 통계는 <a href={`${import.meta.env.BASE_URL}ai/quality`} style={{ color: "var(--c-accent-500)" }}>AI 분류 정확도</a>에서 확인하세요.
       </div>
 
     </section>
