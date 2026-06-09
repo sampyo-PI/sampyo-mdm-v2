@@ -50,8 +50,15 @@
 
 ## 3. 갭 분류 + 전환 작업
 
-### A. 🟡 read-only → CRUD (5페이지, admin 마스터 — 위험 ↑)
-속성 / 단위 / 제조사(+병합) / 분류체계 / 분류-속성 매핑. v1과 동일 DB 즉시반영 주의.
+### A. ✅ read-only → CRUD (5페이지, admin 마스터) — **6-9 완료·배포·검증**
+단위 / 제조사(+병합) / 속성 / 분류체계 / 분류-속성 매핑 전부 CRUD 활성화. `useMutation`+`rest()` 패턴, admin 게이트.
+- **단위**: 추가/수정/삭제 (unit_type item/attribute/both)
+- **제조사**: 추가/수정/삭제 + **병합**(source명별 items.maker·item_requests.maker UPDATE + source DELETE, in-list 함정 회피 개별 PATCH). code 생략 시 DB 자동생성(MK####)
+- **속성**: 추가/수정/삭제 (v1은 목록이 mock였음 → v2가 더 완전), 단위 datalist
+- **분류체계**: 대/중/소 추가·수정 + 현장용어 추가/수정/삭제/토글. **분류 삭제 미포함**(v1 UI도 없음). 코드검증 교정 `대^[A-Z]$/중^[A-Z0-9]{2}$/소^[A-Z0-9]{3}$`(실데이터 숫자포함 대응)
+- **매핑**: 속성 추가/제거/순서(↑↓ swap)/include_in_name 토글 — **즉시 영속**(v1 delete-all+reinsert 대신 incremental)
+- **검증**: admin JWT(RLS 경로) 전 쓰기 17/17 통과(병합 items UPDATE 포함) + 실 UI 추가 왕복 + admin 게이트 동작. 테스트 데이터 0 잔존
+- ⚠️ **분류코드 수정은 기존 item_code prefix와 desync**(v1 동일 기존 위험) — admin 책임
 
 ### B. 🆕 cutover 후 정합 (포팅/은퇴)
 - v2 catalog/상세/내보내기에 **sub_type=속성1 + N속성** 포팅(v1 6-9 코드 이식)
@@ -68,10 +75,12 @@
 - [ ] 스모크 테스트(로그인/카탈로그/신청/승인/관리자 CRUD) / nginx config 가드(반복 소실 이력)
 
 ## 4. 권장 우선순위
-1. **B(정합)** 먼저 — sub_type/N속성 포팅 + cat2/품목명관리 은퇴 (cutover와 직접 연관, 위험 낮음)
-2. **A(CRUD 활성)** — 단위→제조사→속성→분류체계→매핑 (위험 순)
-3. **C 누락페이지 결정** (request/edit·item/list·item/:id·erp/lookup 살릴지)
+1. ~~**B(정합)**~~ ✅ 완료 (6-9)
+2. ~~**A(CRUD 활성)**~~ ✅ 완료 (6-9) — 단위→제조사→속성→분류체계→매핑 5페이지 배포·검증
+3. **C 누락페이지 결정** ← **다음** (request/edit·item/list·item/:id·erp/lookup 살릴지/흡수/폐기)
 4. **D 인프라** (base'/'·OAuth·nginx) — 마지막 컷오버
+
+> **⚠️ nginx `/v2/` location 반복 소실**: 메인 `mdm.sampyo.co.kr` config의 `location ^~ /v2/` 블록이 또 사라짐(6-9). 복구 스크립트 `scripts/_add_mdm_v2_location.cjs` **재생성**(멱등 + nginx -t 검증 + 실패 시 백업 복원). 배포 후 `/v2/` 404 시 이 스크립트 실행.
 
 ## 5. 결정 필요 (사용자)
 - C 4개 페이지: v2에서 살릴지/카탈로그 흡수/폐기
