@@ -9,10 +9,13 @@ import {
   fetchMyDrafts,
   uploadAttachmentFiles,
   submitRequest,
+  dupMatchLabel,
   type AIAnalysisResult,
+  type DuplicateCandidate,
 } from "../lib/itemRequestQueries";
 import { OptionCombobox, type OptionItem } from "../components/common/OptionCombobox";
 import { useAuth } from "../contexts/AuthContext";
+import { rpc } from "../lib/supabase";
 
 const MAX_IMAGE_MB = 10;
 const MAX_DOC_MB = 20;
@@ -28,6 +31,7 @@ type FormState = {
   unit: string;
   spec: string;
   notes: string;
+  additionalInfo: string;
 };
 
 const INIT: FormState = {
@@ -41,6 +45,7 @@ const INIT: FormState = {
   unit: "",
   spec: "",
   notes: "",
+  additionalInfo: "",
 };
 
 export function ItemRequestPage() {
@@ -61,6 +66,7 @@ export function ItemRequestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+  const [dupResult, setDupResult] = useState<{ hard: boolean; candidates: DuplicateCandidate[] } | null>(null);
   // 낙관적 잠금 — saveDraft 후 받은 version (간단히 1부터 시작, 실제 DB version은 UPDATE 시 갱신)
   const [draftVersion, setDraftVersion] = useState(1);
 
@@ -106,6 +112,18 @@ export function ItemRequestPage() {
     staleTime: 5 * 60_000,
   });
 
+  // 단위 등록개수(사용 빈도) — 신규등록 단위 드롭다운 정렬용 (#11)
+  const unitUsageQuery = useQuery({
+    queryKey: ["unit-usage-counts"],
+    queryFn: () => rpc<Record<string, number>>("get_unit_usage_counts"),
+    staleTime: 5 * 60_000,
+  });
+  const sortedUnits = useMemo(() => {
+    const us = mastersQuery.data?.units ?? [];
+    const usage = unitUsageQuery.data ?? {};
+    return [...us].sort((a, b) => (usage[b.code] ?? 0) - (usage[a.code] ?? 0) || a.code.localeCompare(b.code));
+  }, [mastersQuery.data?.units, unitUsageQuery.data]);
+
   const sitesFiltered = useMemo(() => {
     if (!form.companyId || !mastersQuery.data) return [];
     return mastersQuery.data.sites.filter((s) => s.company_id === form.companyId);
@@ -143,7 +161,7 @@ export function ItemRequestPage() {
         id: string; request_number: string; status: string; requester_id: string; version: number | null;
         item_name: string; maker: string | null; model: string | null;
         company_id: string | null; site_id: string | null; equipment_name: string | null;
-        unit: string | null; spec: string | null; notes: string | null;
+        unit: string | null; spec: string | null; notes: string | null; additional_info: string | null;
         image_urls: string[] | null; document_urls: string[] | null;
       };
       let arr: Row[];
@@ -151,7 +169,7 @@ export function ItemRequestPage() {
         arr = await rest<Row[]>("GET", "item_requests", {
           params: {
             id: `eq.${editId}`, limit: "1",
-            select: "id,request_number,status,requester_id,version,item_name,maker,model,company_id,site_id,equipment_name,unit,spec,notes,image_urls,document_urls",
+            select: "id,request_number,status,requester_id,version,item_name,maker,model,company_id,site_id,equipment_name,unit,spec,notes,additional_info,image_urls,document_urls",
           },
         });
       } catch (e) { alert("요청 조회 실패: " + (e as Error).message); navigate("/requests"); return; }
@@ -170,6 +188,7 @@ export function ItemRequestPage() {
         itemName: r.item_name, makerId: m?.id ?? null, makerName: r.maker ?? "",
         model: r.model ?? "", companyId: r.company_id, siteId: r.site_id,
         equipmentName: r.equipment_name ?? "", unit: r.unit ?? "", spec: r.spec ?? "", notes: r.notes ?? "",
+        additionalInfo: r.additional_info ?? "",
       });
       setAi(null);
       setEditLoaded(true);
@@ -212,6 +231,7 @@ export function ItemRequestPage() {
         unit: form.unit || null,
         spec: form.spec || null,
         notes: form.notes || null,
+        additionalInfo: form.additionalInfo || null,
         imageUrls: allImagePaths,
         documentUrls: allDocPaths,
       }, draftId);
@@ -231,11 +251,12 @@ export function ItemRequestPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (confirmSoft = false) => {
     if (!ai) { alert("AI 분석 결과가 필요합니다"); return; }
     const cat = ai.categories[selectedCategory];
     if (!cat) { alert("분류를 선택하세요"); return; }
     setSubmitting(true); setSubmitErr(null); setSubmitMsg(null);
+    if (!confirmSoft) setDupResult(null);
     try {
       // draftId 없으면 자동 임시저장 → 신규 draftId 확보
       let currentDraftId = draftId;
@@ -256,6 +277,7 @@ export function ItemRequestPage() {
           companyId: form.companyId, siteId: form.siteId,
           equipmentName: form.equipmentName || null, unit: form.unit || null,
           spec: form.spec || null, notes: form.notes || null,
+          additionalInfo: form.additionalInfo || null,
           imageUrls: allImagePaths, documentUrls: allDocPaths,
         }, null);
         currentDraftId = dr.id;
@@ -283,12 +305,17 @@ export function ItemRequestPage() {
         spec: form.spec || null,
         equipmentName: form.equipmentName || null,
         attributes: ai.attributes.map((a) => ({ name: a.name, value: a.value })),
+        confirmSoft,
       });
 
       if (!result.ok) {
+        if (result.blocked === "duplicate" || result.blocked === "soft_duplicate") {
+          setDupResult({ hard: result.blocked === "duplicate", candidates: result.candidates ?? [] });
+        }
         setSubmitErr(result.message);
         return;
       }
+      setDupResult(null);
       setSubmitMsg(`✅ 제출 완료: ${result.requestNumber} → 1차 AI 검토 자동 진행 (v2 격리 데이터)`);
       setDraftVersion(draftVersion + 1);
       // 폼 초기화 — 다음 신청 가능
@@ -308,13 +335,13 @@ export function ItemRequestPage() {
     type Row = {
       id: string; item_name: string; maker: string | null; model: string | null;
       company_id: string | null; site_id: string | null; equipment_name: string | null;
-      unit: string | null; spec: string | null; notes: string | null;
+      unit: string | null; spec: string | null; notes: string | null; additional_info: string | null;
       image_urls: string[] | null; document_urls: string[] | null;
     };
     let r: Row;
     try {
       const arr = await rest<Row[]>("GET", "item_requests", {
-        params: { id: `eq.${id}`, select: "id,item_name,maker,model,company_id,site_id,equipment_name,unit,spec,notes,image_urls,document_urls" },
+        params: { id: `eq.${id}`, select: "id,item_name,maker,model,company_id,site_id,equipment_name,unit,spec,notes,additional_info,image_urls,document_urls" },
       });
       if (!arr || arr.length === 0) { alert("불러오기 실패"); return; }
       r = arr[0];
@@ -337,6 +364,7 @@ export function ItemRequestPage() {
       unit: r.unit ?? "",
       spec: r.spec ?? "",
       notes: r.notes ?? "",
+      additionalInfo: r.additional_info ?? "",
     });
     setAi(null);
   };
@@ -392,8 +420,6 @@ export function ItemRequestPage() {
       return next;
     });
   };
-
-  const masters = mastersQuery.data;
 
   return (
     <section className="page-card">
@@ -497,7 +523,7 @@ export function ItemRequestPage() {
               style={{ width: "100%", appearance: "auto" }}
             >
               <option value="">단위 선택</option>
-              {(masters?.units ?? []).map((u) => (
+              {sortedUnits.map((u) => (
                 <option key={u.id} value={u.code}>
                   {u.code} – {u.name}
                 </option>
@@ -778,7 +804,12 @@ export function ItemRequestPage() {
                     <div className="sim-reason">{s.reason}</div>
                   </div>
                   <div className="acts">
-                    <button className="btn-sec" style={{ fontSize: 12 }} disabled>📋 상세보기</button>
+                    <button
+                      className="btn-sec"
+                      style={{ fontSize: 12 }}
+                      onClick={() => window.open(`${import.meta.env.BASE_URL}item/${encodeURIComponent(s.code)}`, "_blank")}
+                      title="새 탭에서 카탈로그 상세 열기"
+                    >📋 상세보기</button>
                   </div>
                 </div>
               ))}
@@ -817,6 +848,17 @@ export function ItemRequestPage() {
                   </div>
                 );
               })}
+              {/* 추가정보 (additional_info) — 구조화 속성 외 자유 입력 (#11) */}
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                <div className="sub-lbl" style={{ marginBottom: 4 }}>추가정보 (additional_info)</div>
+                <textarea
+                  rows={2}
+                  placeholder="구조화 속성 외 추가 정보 (예: 직경_mm:10, DIN RAIL 35mm 등)"
+                  value={form.additionalInfo}
+                  onChange={(e) => update({ additionalInfo: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </div>
             </div>
           )}
 
@@ -829,6 +871,29 @@ export function ItemRequestPage() {
           {submitErr && (
             <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 6, color: "#991b1b", fontSize: 13 }}>
               ⚠ {submitErr}
+            </div>
+          )}
+
+          {/* 중복 후보 (하드=차단 / 소프트=확인 후 진행) */}
+          {dupResult && dupResult.candidates.length > 0 && (
+            <div style={{ marginTop: 12, padding: "12px 14px", background: dupResult.hard ? "#fef2f2" : "#fffbeb", border: `1px solid ${dupResult.hard ? "#fca5a5" : "#fcd34d"}`, borderRadius: 6 }}>
+              <div style={{ fontWeight: 700, color: dupResult.hard ? "#991b1b" : "#92400e", fontSize: 13, marginBottom: 8 }}>
+                {dupResult.hard ? "⛔ 이미 등록된 동일 품목 — 제출 불가" : `⚠️ 유사 품목 ${dupResult.candidates.length}건 — 확인 후 진행`}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {dupResult.candidates.map((c, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#1e293b" }}>
+                    <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, color: "#003876", minWidth: 130 }}>{c.item_code}</span>
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.normalized_name || c.item_name}{c.model ? ` (${c.model})` : ""}</span>
+                    <span style={{ fontSize: 11, padding: "1px 7px", borderRadius: 999, background: "#fff", border: "1px solid #e2e8f0", color: "#64748b", whiteSpace: "nowrap" }}>{dupMatchLabel(c.match_type)}{c.variant_candidate ? " · 변형?" : ""}</span>
+                  </div>
+                ))}
+              </div>
+              {!dupResult.hard && (
+                <button className="btn-sec" style={{ marginTop: 10, fontSize: 12 }} onClick={() => handleSubmit(true)} disabled={submitting}>
+                  {submitting ? "제출 중…" : "확인했습니다 — 그래도 제출"}
+                </button>
+              )}
             </div>
           )}
 
@@ -845,7 +910,7 @@ export function ItemRequestPage() {
               </button>
               <button
                 className="btn-pri"
-                onClick={handleSubmit}
+                onClick={() => handleSubmit()}
                 disabled={submitting || !ai}
                 title={!ai ? "AI 분석 먼저 실행" : "검토 요청 → PENDING_AI_REVIEW (is_v2_test 격리)"}
               >

@@ -99,6 +99,7 @@ export type DraftInput = {
   unit?: string | null;
   spec?: string | null;
   notes?: string | null;
+  additionalInfo?: string | null;
   imageUrls?: string[];
   documentUrls?: string[];
 };
@@ -147,6 +148,7 @@ export async function saveDraft(input: DraftInput, existingId?: string | null): 
     unit: input.unit ?? null,
     spec: input.spec ?? null,
     notes: input.notes ?? null,
+    additional_info: input.additionalInfo ?? null,
     image_urls: input.imageUrls ?? [],
     document_urls: input.documentUrls ?? [],
     status: "DRAFT" as const,
@@ -182,12 +184,14 @@ export type SubmitInput = {
   spec: string | null;
   equipmentName: string | null;
   attributes: Array<{ name: string; value: string }>;  // 5속성
+  confirmSoft?: boolean;       // 소프트 중복 경고를 확인하고 진행할 때 true
 };
 export type DuplicateCandidate = {
   item_code: string;
-  item_code_display: string;
+  item_code_display?: string;
   item_name: string;
   normalized_name: string;
+  model?: string | null;
   match_type: string;
   severity: number;
   variant_candidate?: boolean;
@@ -198,10 +202,18 @@ export type SubmitResult = {
   normalizedName: string | null;
 } | {
   ok: false;
-  blocked: "duplicate" | "version_conflict";
+  blocked: "duplicate" | "soft_duplicate" | "version_conflict";
   candidates?: DuplicateCandidate[];
   message: string;
 };
+
+const MATCH_LABEL: Record<string, string> = {
+  max_exact: "완전 일치",
+  normalized_similar: "표준명 유사",
+  model_spec_normalized: "모델·규격 일치",
+  model_only: "동일 모델",
+};
+export function dupMatchLabel(t: string): string { return MATCH_LABEL[t] ?? t; }
 
 export async function submitRequest(input: SubmitInput): Promise<SubmitResult> {
   // 1) 표준명 계산
@@ -225,26 +237,38 @@ export async function submitRequest(input: SubmitInput): Promise<SubmitResult> {
     }
   }
 
-  // 2) 중복 검사 (Hard duplicate exact 차단)
-  if (input.smallCategoryName && normalizedName) {
+  // 2) 중복 검사 — 하드(max_exact 동일) 차단 / 소프트(유사·모델 등) 확인 요청
+  if (input.smallCategoryName) {
     try {
       const candidates = await rest<DuplicateCandidate[]>("POST", "rpc/check_item_duplicate", {
         body: {
           p_small_category: input.smallCategoryName,
-          p_normalized_name: normalizedName,
+          p_normalized_name: normalizedName, // null이어도 max_exact/model 티어는 동작
           p_model: input.model,
           p_exclude_item_id: null,
           p_spec: input.spec,
           p_maker: input.maker,
+          p_attributes: input.attributes,
         },
       });
-      const exactSameMaker = candidates.some((c) => c.match_type === "normalized_exact" && !c.variant_candidate);
-      if (exactSameMaker) {
+      // 하드: 최대키 완전일치(변형 아님) → 차단
+      const hard = candidates.filter((c) => c.match_type === "max_exact" && !c.variant_candidate);
+      if (hard.length > 0) {
         return {
           ok: false,
           blocked: "duplicate",
-          candidates,
-          message: `동일 표준명·제조사 품목이 이미 존재합니다: ${candidates[0].item_code_display}`,
+          candidates: hard,
+          message: `동일 품목이 이미 존재합니다: ${hard[0].item_code}`,
+        };
+      }
+      // 소프트: 유사표준명/모델·규격/동일모델 → 사용자 확인 후 진행
+      const soft = candidates.filter((c) => c.match_type !== "max_exact");
+      if (soft.length > 0 && !input.confirmSoft) {
+        return {
+          ok: false,
+          blocked: "soft_duplicate",
+          candidates: soft,
+          message: `유사 품목 ${soft.length}건이 발견됐습니다. 확인 후 진행하세요.`,
         };
       }
     } catch (e) {
