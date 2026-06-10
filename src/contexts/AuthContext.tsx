@@ -32,6 +32,8 @@ type AuthCtx = {
   reviewerCompanyIds: (string | null)[];
   loading: boolean;
   signInGoogle: () => Promise<void>;
+  /** id/pw 로그인 (DNS 깨진 사업장 IP:포트 접속용). id에 @ 없으면 @sampyo.co.kr 자동 부여 */
+  signInPassword: (id: string, pw: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -45,6 +47,7 @@ const Ctx = createContext<AuthCtx>({
   reviewerCompanyIds: [],
   loading: true,
   signInGoogle: async () => {},
+  signInPassword: async () => {},
   signOut: async () => {},
 });
 
@@ -146,6 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) alert(`Google 로그인 실패: ${error.message}`);
   };
 
+  const signInPassword = async (id: string, pw: string) => {
+    const email = id.includes("@") ? id.trim() : `${id.trim()}@sampyo.co.kr`;
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -168,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         reviewerCompanyIds,
         loading,
         signInGoogle,
+        signInPassword,
         signOut,
       }}
     >

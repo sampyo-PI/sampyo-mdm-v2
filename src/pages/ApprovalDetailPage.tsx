@@ -91,7 +91,8 @@ export function ApprovalDetailPage() {
   }, [bundle, user, currentStep, reviewerCompanyIds, isAdmin]);
 
   const isSelfRequester = !!user && !!bundle && bundle.request.requester_id === user.id;
-  const canAct = teamReviewerAllowed && !isSelfRequester && !!currentStep;
+  // admin은 본인 신청건도 검토 가능 (일반 검토자는 자기검토 차단 유지)
+  const canAct = teamReviewerAllowed && (isAdmin || !isSelfRequester) && !!currentStep;
   const isV2Test = !!bundle && (bundle.request as unknown as { is_v2_test?: boolean }).is_v2_test === true;
 
   const handleApprove = async () => {
